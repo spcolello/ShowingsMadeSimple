@@ -24,6 +24,9 @@ alter table public.agent_profiles
   add column if not exists total_earnings_cents integer not null default 0,
   add column if not exists completed_showings_count integer not null default 0;
 
+alter table public.verification_documents
+  add column if not exists internal_notes text;
+
 update public.agent_profiles
 set
   license_state = coalesce(license_state, licensed_state),

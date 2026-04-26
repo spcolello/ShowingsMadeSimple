@@ -5,16 +5,24 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen">
       <header className="border-b border-slate-200 bg-white">
-        <nav className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
+        <nav className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4">
           <Link href="/" className="text-lg font-semibold tracking-tight text-slate-950">
             Showings Made Simple
           </Link>
-          <div className="hidden items-center gap-4 text-sm font-medium text-slate-600 sm:flex">
-            <Link href="/buyer/dashboard">Buyer</Link>
-            <Link href="/buyer/profile">Profile</Link>
-            <Link href="/agent/dashboard">Agent</Link>
-            <Link href="/admin">Admin</Link>
-            <Link href="/terms">Terms</Link>
+          <div className="flex items-center gap-3">
+            <div className="hidden items-center gap-4 text-sm font-medium text-slate-600 md:flex">
+              <Link href="/buyer/dashboard">Buyer</Link>
+              <Link href="/buyer/profile">Profile</Link>
+              <Link href="/agent/dashboard">Agent</Link>
+              <Link href="/admin">Admin</Link>
+              <Link href="/terms">Terms</Link>
+            </div>
+            <Link
+              href="/login"
+              className="inline-flex min-h-10 items-center rounded-md border border-slate-300 px-3 text-sm font-semibold text-slate-800 hover:bg-slate-100"
+            >
+              Login
+            </Link>
           </div>
         </nav>
       </header>
@@ -36,12 +44,13 @@ export function Section({
 export function Card({
   children,
   className,
+  ...props
 }: {
   children: React.ReactNode;
   className?: string;
-}) {
+} & React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={clsx("rounded-lg border border-slate-200 bg-white p-5 shadow-sm", className)}>
+    <div className={clsx("rounded-lg border border-slate-200 bg-white p-5 shadow-sm", className)} {...props}>
       {children}
     </div>
   );

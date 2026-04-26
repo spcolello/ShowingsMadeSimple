@@ -23,6 +23,11 @@ export async function createShowingRequest(input: ShowingInput) {
 
   const supabase = getSupabaseAdmin();
   if (!supabase) {
+    const { demoBuyer } = await import("./demo-data");
+    const { isBuyerReady } = await import("./mvp-rules");
+    if (!isBuyerReady(demoBuyer)) {
+      throw new Error("Buyer verification must be approved before requesting showings.");
+    }
     return {
       id: "local-new-showing",
       status: "pending",
@@ -32,6 +37,26 @@ export async function createShowingRequest(input: ShowingInput) {
   }
 
   const { data, error } = await supabase
+    .from("buyer_profiles")
+    .select("email_verified, identity_verification_status, financial_verification_status, buyer_onboarding_completed, suspended")
+    .eq("id", input.buyerId)
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  if (
+    !data.email_verified ||
+    data.identity_verification_status !== "approved" ||
+    data.financial_verification_status !== "approved" ||
+    !data.buyer_onboarding_completed ||
+    data.suspended
+  ) {
+    throw new Error("Buyer verification must be approved before requesting showings.");
+  }
+
+  const { data: createdShowing, error: showingError } = await supabase
     .from("showing_requests")
     .insert({
       buyer_id: input.buyerId,
@@ -51,18 +76,18 @@ export async function createShowingRequest(input: ShowingInput) {
     .select()
     .single();
 
-  if (error) {
-    throw error;
+  if (showingError) {
+    throw showingError;
   }
 
   await supabase.from("compliance_logs").insert({
     actor_user_id: input.buyerId,
     action: "Showing requested",
     subject_table: "showing_requests",
-    subject_id: data.id,
+    subject_id: createdShowing.id,
   });
 
-  return data;
+  return createdShowing;
 }
 
 export async function notifyMatchingAgents(showingId: string) {

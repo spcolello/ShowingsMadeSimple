@@ -13,26 +13,45 @@ const schema = z.object({
     "suspend_buyer",
     "suspend_agent",
     "override_agent_availability",
+    "approve_document",
+    "reject_document",
     "reassign_showing",
     "refund_payment",
     "mark_showing_complete",
   ]),
   subjectId: z.string().min(1),
   agentId: z.string().optional(),
+  isAvailable: z.boolean().optional(),
+  serviceRadiusMiles: z.number().optional(),
+  availableHours: z.string().optional(),
   note: z.string().optional(),
 });
 
 export async function POST(request: Request) {
-  const payload = schema.parse(await request.json());
+  const contentType = request.headers.get("content-type") ?? "";
+  const rawPayload = contentType.includes("application/json")
+    ? await request.json()
+    : Object.fromEntries(await request.formData());
+  const payload = schema.parse({
+    ...rawPayload,
+    isAvailable:
+      rawPayload.isAvailable === "true" ? true : rawPayload.isAvailable === "false" ? false : rawPayload.isAvailable,
+    serviceRadiusMiles: rawPayload.serviceRadiusMiles
+      ? Number(rawPayload.serviceRadiusMiles)
+      : undefined,
+  });
   const supabase = getSupabaseAdmin();
 
   if (!supabase) {
-    return NextResponse.json({
-      mocked: true,
-      action: payload.action,
-      subjectId: payload.subjectId,
-      auditLogged: true,
-    });
+    if (contentType.includes("application/json")) {
+      return NextResponse.json({
+        mocked: true,
+        action: payload.action,
+        subjectId: payload.subjectId,
+        auditLogged: true,
+      });
+    }
+    return NextResponse.redirect(new URL("/admin?action=mocked", request.url), { status: 303 });
   }
 
   if (payload.action === "approve_buyer_identity" || payload.action === "reject_buyer_identity") {
@@ -69,6 +88,35 @@ export async function POST(request: Request) {
     await supabase.from("buyer_profiles").update({ suspended: true }).eq("id", payload.subjectId);
   }
 
+  if (payload.action === "override_agent_availability") {
+    await supabase
+      .from("agent_profiles")
+      .update({
+        is_available: payload.isAvailable,
+        service_radius_miles: payload.serviceRadiusMiles,
+        available_hours: payload.availableHours,
+      })
+      .eq("id", payload.subjectId);
+  }
+
+  if (payload.action === "reassign_showing" && payload.agentId) {
+    await supabase
+      .from("showing_assignments")
+      .upsert({
+        showing_request_id: payload.subjectId,
+        agent_id: payload.agentId,
+        assigned_at: new Date().toISOString(),
+      }, { onConflict: "showing_request_id" });
+    await supabase.from("showing_requests").update({ status: "agent_assigned" }).eq("id", payload.subjectId);
+  }
+
+  if (payload.action === "approve_document" || payload.action === "reject_document") {
+    await supabase
+      .from("verification_documents")
+      .update({ status: payload.action === "approve_document" ? "approved" : "rejected" })
+      .eq("id", payload.subjectId);
+  }
+
   if (payload.action === "refund_payment") {
     await supabase.from("payments").update({ status: "refunded" }).eq("showing_request_id", payload.subjectId);
     await supabase.from("showing_requests").update({ status: "refunded", payment_status: "refunded" }).eq("id", payload.subjectId);
@@ -87,5 +135,9 @@ export async function POST(request: Request) {
     note: payload.note,
   });
 
-  return NextResponse.json({ ok: true });
+  if (contentType.includes("application/json")) {
+    return NextResponse.json({ ok: true });
+  }
+
+  return NextResponse.redirect(new URL("/admin?action=saved", request.url), { status: 303 });
 }

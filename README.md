@@ -35,6 +35,7 @@ supabase/migrations/001_initial_schema.sql
 supabase/migrations/002_rls_policies.sql
 supabase/migrations/003_mvp_alignment.sql
 supabase/migrations/004_agent_onboarding.sql
+supabase/migrations/005_admin_access.sql
 supabase/seed/seed.sql
 ```
 
@@ -73,6 +74,7 @@ RLS policies scope buyer, agent, and admin access. Server-side workflow routes u
 - `/agent/onboarding/tax`
 - `/agent/onboarding/payout`
 - `/agent/onboarding/complete`
+- `/login`
 - `/buyer/dashboard`
 - `/buyer/profile`
 - `/agent/dashboard`
