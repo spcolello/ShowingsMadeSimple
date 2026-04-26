@@ -4,7 +4,7 @@ import { demoAgents, demoShowings, formatMoney, matchingAgentsForZip } from "@/l
 export default function AgentDashboardPage() {
   const agent = demoAgents[0];
   const nearby = demoShowings.filter(
-    (showing) => showing.status === "searching_for_agent" && matchingAgentsForZip(showing.zipCode).some((match) => match.id === agent.id),
+    (showing) => showing.status === "pending" && matchingAgentsForZip(showing.zipCode).some((match) => match.id === agent.id),
   );
   const assigned = demoShowings.filter((showing) => showing.assignedAgentId === agent.id);
 
@@ -17,13 +17,13 @@ export default function AgentDashboardPage() {
             <h1 className="mt-1 text-3xl font-semibold">{agent.name}</h1>
             <p className="mt-2 text-slate-600">
               License {agent.licenseNumber} in {agent.licensedState}. Availability:{" "}
-              {agent.available ? "on" : "off"}.
+              {agent.available ? "on" : "off"}. Radius: {agent.serviceRadiusMiles} miles.
             </p>
           </div>
-          <StatusBadge status={agent.verified ? "license_verified" : "review_pending"} />
+          <StatusBadge status={agent.approvalStatus} />
         </div>
 
-        <div className="mt-8 grid gap-4 md:grid-cols-3">
+        <div className="mt-8 grid gap-4 md:grid-cols-4">
           <Card>
             <p className="text-sm text-slate-500">Nearby open requests</p>
             <p className="mt-2 text-3xl font-semibold">{nearby.length}</p>
@@ -36,17 +36,30 @@ export default function AgentDashboardPage() {
             <p className="text-sm text-slate-500">Estimated pending earnings</p>
             <p className="mt-2 text-3xl font-semibold">{formatMoney(agent.pendingEarningsCents)}</p>
           </Card>
+          <Card>
+            <p className="text-sm text-slate-500">Acceptance rate</p>
+            <p className="mt-2 text-3xl font-semibold">{Math.round(agent.acceptanceRate * 100)}%</p>
+          </Card>
         </div>
 
         <div className="mt-8 grid gap-4 lg:grid-cols-2">
           <Card>
             <h2 className="text-lg font-semibold">Available requests nearby</h2>
             <div className="mt-4 grid gap-3">
+              {nearby.length === 0 && (
+                <p className="rounded-md border border-slate-200 p-4 text-sm text-slate-600">
+                  No eligible requests are available right now.
+                </p>
+              )}
               {nearby.map((showing) => (
                 <div key={showing.id} className="rounded-md border border-slate-200 p-4">
                   <p className="font-semibold">{showing.propertyAddress}</p>
                   <p className="mt-1 text-sm text-slate-600">
                     {new Date(showing.preferredTime).toLocaleString()} - {showing.attendees} attendees
+                  </p>
+                  <p className="mt-1 text-sm text-slate-600">
+                    Buyer verified. Payout {formatMoney(showing.agentPayoutCents)}.{" "}
+                    {showing.safetyNotes}
                   </p>
                   <div className="mt-4">
                     <ButtonLink href={`/agent/accept/${showing.id}?agent=${agent.id}`}>
@@ -60,13 +73,18 @@ export default function AgentDashboardPage() {
           <Card>
             <h2 className="text-lg font-semibold">Assigned and completed</h2>
             <div className="mt-4 grid gap-3">
+              {assigned.length === 0 && (
+                <p className="rounded-md border border-slate-200 p-4 text-sm text-slate-600">
+                  No accepted showings yet.
+                </p>
+              )}
               {assigned.map((showing) => (
                 <div key={showing.id} className="rounded-md border border-slate-200 p-4">
                   <div className="flex items-start justify-between gap-3">
                     <p className="font-semibold">{showing.propertyAddress}</p>
                     <StatusBadge status={showing.status} />
                   </div>
-                  <p className="mt-1 text-sm text-slate-600">{showing.notes}</p>
+                  <p className="mt-1 text-sm text-slate-600">{showing.safetyNotes}</p>
                 </div>
               ))}
             </div>

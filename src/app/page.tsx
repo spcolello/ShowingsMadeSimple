@@ -28,7 +28,7 @@ export default function Home() {
               <p className="text-sm font-semibold text-slate-500">Live request</p>
               <h2 className="mt-1 text-xl font-semibold">88 Brickell Plaza</h2>
             </div>
-            <StatusBadge status="searching_for_agent" />
+            <StatusBadge status="pending" />
           </div>
           <div className="grid gap-3 text-sm text-slate-700">
             <p className="flex items-center gap-2">

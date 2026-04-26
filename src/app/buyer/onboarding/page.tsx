@@ -19,14 +19,25 @@ export default function BuyerOnboardingPage() {
               <Field label="Phone number" name="phone" type="tel" />
               <Field label="Email" name="email" type="email" />
               <Field label="Phone verification code" name="phoneCode" placeholder="123456" />
+              <Field label="Address confirmation" name="addressConfirmation" placeholder="Current home address" />
             </div>
-            <Field label="Government ID upload placeholder" name="governmentId" type="file" />
+            <Field label="Government ID upload" name="governmentId" type="file" />
+            <Field label="Selfie upload for identity match" name="selfie" type="file" />
             <Field
-              label="Pre-approval or proof-of-funds upload placeholder"
+              label="Pre-qualification letter upload"
               name="proofOfFunds"
               type="file"
               required={false}
             />
+            <label className="grid gap-1.5 text-sm font-medium text-slate-700">
+              Soft credit check status
+              <select name="softCreditStatus" className="min-h-11 rounded-md border border-slate-300 bg-white px-3">
+                <option>not_started</option>
+                <option>pending_review</option>
+                <option>verified</option>
+                <option>rejected</option>
+              </select>
+            </label>
             <label className="flex gap-3 text-sm text-slate-700">
               <input type="checkbox" required className="mt-1" />
               I agree to safety rules, showing terms, and truthful buyer information.

@@ -1,14 +1,17 @@
 import { demoAgents, demoShowings, matchingAgentsForZip } from "./demo-data";
 import { env } from "./env";
+import { canBroadcastShowing } from "./mvp-rules";
 import { sendSms } from "./sms";
 import { getSupabaseAdmin } from "./supabase";
 
 type ShowingInput = {
   buyerId?: string;
   propertyAddress: string;
+  mlsNumber?: string;
+  propertySummary: string;
   zipCode: string;
   preferredTime: string;
-  notes?: string;
+  safetyNotes?: string;
   attendees: number;
   seriousInterest: boolean;
 };
@@ -22,8 +25,8 @@ export async function createShowingRequest(input: ShowingInput) {
   if (!supabase) {
     return {
       id: "local-new-showing",
-      status: "payment_pending",
-      paymentStatus: "pending",
+      status: "pending",
+      paymentStatus: "unpaid",
       ...input,
     };
   }
@@ -33,13 +36,17 @@ export async function createShowingRequest(input: ShowingInput) {
     .insert({
       buyer_id: input.buyerId,
       property_address: input.propertyAddress,
+      mls_number: input.mlsNumber,
+      property_summary: input.propertySummary,
       zip_code: input.zipCode,
       preferred_time: input.preferredTime,
-      notes: input.notes,
+      safety_notes: input.safetyNotes,
       attendees: input.attendees,
-      status: "payment_pending",
-      payment_status: "pending",
+      status: "pending",
+      payment_status: "unpaid",
       showing_fee_cents: 7500,
+      agent_payout_cents: 6000,
+      platform_fee_cents: 1500,
     })
     .select()
     .single();
@@ -63,6 +70,9 @@ export async function notifyMatchingAgents(showingId: string) {
 
   if (!supabase) {
     const showing = demoShowings.find((item) => item.id === showingId) ?? demoShowings[0];
+    if (!canBroadcastShowing(showing)) {
+      return { matchedAgents: 0, notifications: [], blocked: "Payment must be held before broadcast." };
+    }
     const agents = matchingAgentsForZip(showing.zipCode);
     const results = await Promise.all(
       agents.map((agent) =>
@@ -88,7 +98,7 @@ export async function notifyMatchingAgents(showingId: string) {
   const { data: agents, error } = await supabase
     .from("agent_profiles")
     .select("*")
-    .eq("verified", true)
+    .eq("approval_status", "approved")
     .eq("available", true)
     .contains("service_areas", [showing.zip_code])
     .not("phone", "is", null);
@@ -120,7 +130,7 @@ export async function notifyMatchingAgents(showingId: string) {
 
   await supabase
     .from("showing_requests")
-    .update({ status: "searching_for_agent" })
+    .update({ status: "pending" })
     .eq("id", showingId);
 
   return { matchedAgents: agents?.length ?? 0, notifications };
@@ -131,7 +141,7 @@ export async function acceptShowingRequest(showingId: string, agentId: string) {
 
   if (!supabase) {
     const showing = demoShowings.find((item) => item.id === showingId);
-    if (!showing || showing.assignedAgentId || showing.status === "assigned") {
+    if (!showing || showing.assignedAgentId || showing.status !== "pending") {
       return { accepted: false, message: "This showing has already been claimed." };
     }
     const agent = demoAgents.find((item) => item.id === agentId) ?? demoAgents[0];
@@ -153,7 +163,7 @@ export async function acceptShowingRequest(showingId: string, agentId: string) {
 export async function completeShowing(showingId: string, agentId: string) {
   const supabase = getSupabaseAdmin();
   if (!supabase) {
-    return { completed: true, pendingEarningsCents: 6000 };
+    return { completed: true, payoutStatus: "released", pendingEarningsCents: 6000 };
   }
 
   const { error } = await supabase.rpc("complete_showing", {

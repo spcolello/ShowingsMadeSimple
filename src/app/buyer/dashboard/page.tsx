@@ -10,7 +10,10 @@ export default function BuyerDashboardPage() {
           <div>
             <p className="text-sm font-semibold text-teal-700">Buyer dashboard</p>
             <h1 className="mt-1 text-3xl font-semibold">{demoBuyer.fullName}</h1>
-            <p className="mt-2 text-slate-600">Verification: {demoBuyer.verificationStatus}</p>
+            <p className="mt-2 text-slate-600">
+              Identity: {demoBuyer.identityVerificationStatus}. Financial:{" "}
+              {demoBuyer.financialVerificationStatus}.
+            </p>
           </div>
           <ButtonLink href="/buyer/showings/new">Request showing</ButtonLink>
         </div>
@@ -45,8 +48,11 @@ export default function BuyerDashboardPage() {
                   className="grid gap-3 p-4 hover:bg-slate-50 md:grid-cols-[1.3fr_0.7fr_0.7fr_auto] md:items-center"
                 >
                   <div>
-                    <p className="font-semibold">{showing.propertyAddress}</p>
-                    <p className="text-sm text-slate-600">{showing.zipCode}</p>
+                    <p className="font-semibold">{showing.propertyAddress ?? showing.mlsNumber}</p>
+                    <p className="text-sm text-slate-600">
+                      {showing.mlsNumber ? `MLS ${showing.mlsNumber} - ` : ""}
+                      {showing.zipCode}
+                    </p>
                   </div>
                   <p className="text-sm text-slate-700">
                     {new Date(showing.preferredTime).toLocaleString()}
@@ -56,7 +62,9 @@ export default function BuyerDashboardPage() {
                   </p>
                   <div className="flex items-center gap-3">
                     <StatusBadge status={showing.status} />
-                    <span className="text-sm text-slate-500">{formatMoney(showing.showingFeeCents)}</span>
+                    <span className="text-sm text-slate-500">
+                      {formatMoney(showing.showingFeeCents)} - {showing.paymentStatus}
+                    </span>
                   </div>
                 </Link>
               );

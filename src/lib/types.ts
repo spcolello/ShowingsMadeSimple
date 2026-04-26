@@ -1,23 +1,33 @@
 export type UserRole = "buyer" | "agent" | "admin";
 
 export type ShowingStatus =
-  | "draft"
-  | "payment_pending"
-  | "paid"
-  | "searching_for_agent"
-  | "assigned"
+  | "pending"
+  | "agent_assigned"
+  | "agent_en_route"
   | "completed"
   | "cancelled"
-  | "disputed";
+  | "refunded";
 
-export type VerificationStatus = "not_started" | "submitted" | "approved" | "rejected";
+export type VerificationStatus = "not_started" | "pending_review" | "verified" | "rejected";
+export type AgentApprovalStatus = "pending_review" | "approved" | "rejected" | "suspended";
+export type PaymentStatus = "unpaid" | "paid" | "held" | "released" | "refunded" | "failed";
+export type DocumentStatus = "pending_review" | "verified" | "rejected";
+export type DocumentType =
+  | "government_id"
+  | "selfie"
+  | "prequalification_letter"
+  | "agent_license"
+  | "w9";
 
 export type BuyerProfile = {
   id: string;
   fullName: string;
   email: string;
   phone: string;
-  verificationStatus: VerificationStatus;
+  identityVerificationStatus: VerificationStatus;
+  financialVerificationStatus: VerificationStatus;
+  addressConfirmation: string;
+  suspended: boolean;
   termsAcceptedAt?: string;
 };
 
@@ -27,27 +37,64 @@ export type AgentProfile = {
   phone: string;
   licenseNumber: string;
   licensedState: string;
+  brokerageName: string;
+  brokerageVerificationStatus: VerificationStatus;
+  w9Status: DocumentStatus;
+  payoutSetupStatus: "not_started" | "pending" | "ready";
+  approvalStatus: AgentApprovalStatus;
   serviceAreas: string[];
+  serviceRadiusMiles: number;
+  availableHours: string;
+  requiredNoticeMinutes: number;
   available: boolean;
-  verified: boolean;
   termsAcceptedAt?: string;
   pendingEarningsCents: number;
+  acceptanceRate: number;
+  averageResponseSeconds: number;
 };
 
 export type ShowingRequest = {
   id: string;
   buyerId: string;
-  propertyAddress: string;
+  propertyAddress?: string;
+  mlsNumber?: string;
+  propertySummary: string;
   zipCode: string;
   preferredTime: string;
-  notes: string;
+  safetyNotes: string;
   attendees: number;
   status: ShowingStatus;
-  paymentStatus: "unpaid" | "pending" | "paid" | "refunded";
+  paymentStatus: PaymentStatus;
   showingFeeCents: number;
+  agentPayoutCents: number;
+  platformFeeCents: number;
   assignedAgentId?: string;
   createdAt: string;
   completedAt?: string;
+};
+
+export type VerificationDocument = {
+  id: string;
+  ownerId: string;
+  type: DocumentType;
+  uploadedAt: string;
+  status: DocumentStatus;
+};
+
+export type Payout = {
+  id: string;
+  showingRequestId: string;
+  agentId: string;
+  amountCents: number;
+  status: "pending" | "released" | "failed";
+};
+
+export type SafetyFlag = {
+  id: string;
+  showingRequestId: string;
+  severity: "low" | "medium" | "high";
+  status: "open" | "resolved";
+  note: string;
 };
 
 export type ComplianceLog = {

@@ -22,7 +22,7 @@ export default function ShowingDetailPage() {
             <dl className="mt-4 grid gap-3 text-sm">
               <div><dt className="text-slate-500">Preferred time</dt><dd>{new Date(showing.preferredTime).toLocaleString()}</dd></div>
               <div><dt className="text-slate-500">Attendees</dt><dd>{showing.attendees}</dd></div>
-              <div><dt className="text-slate-500">Notes</dt><dd>{showing.notes}</dd></div>
+              <div><dt className="text-slate-500">Safety notes</dt><dd>{showing.safetyNotes}</dd></div>
             </dl>
           </Card>
           <Card>

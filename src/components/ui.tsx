@@ -11,6 +11,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </Link>
           <div className="hidden items-center gap-4 text-sm font-medium text-slate-600 sm:flex">
             <Link href="/buyer/dashboard">Buyer</Link>
+            <Link href="/buyer/profile">Profile</Link>
             <Link href="/agent/dashboard">Agent</Link>
             <Link href="/admin">Admin</Link>
             <Link href="/terms">Terms</Link>
@@ -74,7 +75,7 @@ export function StatusBadge({ status }: { status: string }) {
   const color =
     status === "completed"
       ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
-      : status === "assigned" || status === "paid"
+      : status === "agent_assigned" || status === "paid" || status === "held" || status === "released"
         ? "bg-blue-50 text-blue-700 ring-blue-200"
         : status === "cancelled" || status === "disputed" || status === "rejected"
           ? "bg-red-50 text-red-700 ring-red-200"

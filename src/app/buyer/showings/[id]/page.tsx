@@ -35,7 +35,7 @@ export default async function ShowingDetailPage({
               </div>
               <div>
                 <dt className="text-slate-500">Notes</dt>
-                <dd>{showing.notes}</dd>
+                <dd>{showing.safetyNotes}</dd>
               </div>
             </dl>
           </Card>

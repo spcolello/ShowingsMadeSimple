@@ -21,7 +21,13 @@ export default function AgentOnboardingPage() {
               <Field label="Phone number" name="phone" type="tel" />
               <Field label="License number" name="licenseNumber" />
               <Field label="Licensed state" name="licensedState" placeholder="FL" />
+              <Field label="License upload" name="licenseUpload" type="file" />
+              <Field label="Brokerage name" name="brokerageName" />
+              <Field label="W-9 upload" name="w9" type="file" />
               <Field label="Service ZIP codes" name="serviceAreas" placeholder="33131,33132" />
+              <Field label="Service radius in miles" name="serviceRadiusMiles" type="number" placeholder="12" />
+              <Field label="Available hours" name="availableHours" placeholder="Mon-Fri 9 AM-6 PM" />
+              <Field label="Required notice minutes" name="requiredNoticeMinutes" type="number" placeholder="60" />
               <Field label="Stripe Connect placeholder" name="stripeConnect" required={false} />
             </div>
             <label className="flex gap-3 text-sm text-slate-700">

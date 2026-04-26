@@ -10,13 +10,15 @@ export default function NewShowingPage() {
         </p>
         <Card className="mt-6">
           <form action="/api/showings" method="post" className="grid gap-4">
-            <Field label="Property address" name="propertyAddress" placeholder="88 Brickell Plaza, Miami, FL" />
+            <Field label="Property address" name="propertyAddress" placeholder="88 Brickell Plaza, Miami, FL" required={false} />
+            <Field label="MLS number entered by buyer" name="mlsNumber" placeholder="A11550123" required={false} />
+            <Field label="Basic property info" name="propertySummary" placeholder="2 bed condo, buyer-entered info only" />
             <div className="grid gap-4 sm:grid-cols-3">
               <Field label="ZIP code" name="zipCode" placeholder="33131" />
               <Field label="Preferred date/time" name="preferredTime" type="datetime-local" />
               <Field label="Number of attendees" name="attendees" type="number" placeholder="2" />
             </div>
-            <TextArea label="Notes" name="notes" placeholder="Access instructions, parking, timing constraints" />
+            <TextArea label="Safety notes" name="safetyNotes" placeholder="Access instructions, parking, timing constraints" />
             <label className="flex gap-3 text-sm text-slate-700">
               <input type="checkbox" name="seriousInterest" value="true" required className="mt-1" />I am
               seriously interested in this property and agree to showing terms.

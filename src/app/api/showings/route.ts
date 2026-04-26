@@ -4,9 +4,11 @@ import { createShowingRequest } from "@/lib/workflow";
 
 const schema = z.object({
   propertyAddress: z.string().min(5),
+  mlsNumber: z.string().optional(),
+  propertySummary: z.string().min(3),
   zipCode: z.string().min(5),
   preferredTime: z.string().min(1),
-  notes: z.string().optional(),
+  safetyNotes: z.string().optional(),
   attendees: z.coerce.number().int().min(1).max(8),
   seriousInterest: z.literal("true").transform(() => true),
 });

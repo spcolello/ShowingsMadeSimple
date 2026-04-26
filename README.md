@@ -33,6 +33,7 @@ Run the SQL files in order:
 ```text
 supabase/migrations/001_initial_schema.sql
 supabase/migrations/002_rls_policies.sql
+supabase/migrations/003_mvp_alignment.sql
 supabase/seed/seed.sql
 ```
 
@@ -46,9 +47,13 @@ The schema includes:
 - `payments`
 - `compliance_logs`
 - `sms_notifications`
-- `documents`
+- `verification_documents`
+- `agent_availability`
+- `payouts`
+- `safety_flags`
+- `audit_logs`
 
-RLS policies scope buyer, agent, and admin access. Server-side workflow routes use `SUPABASE_SERVICE_ROLE_KEY` for trusted actions such as webhooks, SMS logging, and first-come-first-serve assignment RPCs.
+RLS policies scope buyer, agent, and admin access. Server-side workflow routes use `SUPABASE_SERVICE_ROLE_KEY` for trusted actions such as webhooks, SMS logging, admin actions, refunds, and first-come-first-serve assignment RPCs.
 
 ## Core routes
 
@@ -58,6 +63,7 @@ RLS policies scope buyer, agent, and admin access. Server-side workflow routes u
 - `/buyer/onboarding`
 - `/agent/onboarding`
 - `/buyer/dashboard`
+- `/buyer/profile`
 - `/agent/dashboard`
 - `/buyer/showings/new`
 - `/buyer/showings/[id]`
@@ -73,14 +79,24 @@ RLS policies scope buyer, agent, and admin access. Server-side workflow routes u
 - `POST /api/sms/notify-agents` sends SMS alerts to matching agents
 - `POST /api/showings/accept` accepts a showing first-come-first-serve
 - `POST /api/showings/complete` marks assigned showings complete and tracks pending earnings
+- `POST /api/admin/actions` handles manual approvals, suspensions, refunds, reassignment hooks, and completion overrides
+
+## Tests
+
+```bash
+npm test
+```
+
+The workflow test covers buyer readiness, payment-before-broadcast, eligible agent matching, first acceptance, double-acceptance prevention, admin actions, and payout release on completion.
 
 ## MVP simplifications
 
-- Government ID and proof-of-funds are upload placeholders for admin review.
+- Government ID, selfie, pre-qualification letter, license, and W-9 uploads are document records/placeholders for secure Supabase Storage and admin review.
 - Agent license verification is manual.
-- Agent payouts are pending earnings, not real transfers.
-- Matching uses ZIP codes in `agent_profiles.service_areas`.
+- Agent payouts are tracked in `payouts`; real transfers require Stripe Connect production setup.
+- Matching uses ZIP/service-area, availability toggle, required notice time, acceptance rate, and response-time ranking.
 - Google Maps/Mapbox is left as a future geocoding enhancement.
+- MLS data storage, MLS redistribution, IDX, VOW, MLS API, ShowingTime, lender integrations, subscriptions, and AI matching are intentionally out of scope.
 
 ## Compliance note
 

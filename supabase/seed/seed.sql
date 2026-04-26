@@ -12,19 +12,57 @@ values
   ('00000000-0000-0000-0000-000000000003', 'admin', 'admin@example.com')
 on conflict (id) do nothing;
 
-insert into public.buyer_profiles (id, user_id, full_name, phone, verification_status, phone_verified_at, verification_submitted_at, terms_accepted_at)
+insert into public.buyer_profiles (
+  id,
+  user_id,
+  full_name,
+  phone,
+  verification_status,
+  identity_verification_status,
+  financial_verification_status,
+  address_confirmation,
+  suspended,
+  phone_verified_at,
+  verification_submitted_at,
+  terms_accepted_at
+)
 values (
   '10000000-0000-0000-0000-000000000001',
   '00000000-0000-0000-0000-000000000001',
   'Maya Johnson',
   '+15551201010',
-  'approved',
+  'verified',
+  'verified',
+  'verified',
+  '1200 Brickell Bay Dr, Miami, FL 33131',
+  false,
   now(),
   now(),
   now()
 ) on conflict (id) do nothing;
 
-insert into public.agent_profiles (id, user_id, name, phone, license_number, licensed_state, service_areas, available, verified, license_verified_at, terms_accepted_at, pending_earnings_cents)
+insert into public.agent_profiles (
+  id,
+  user_id,
+  name,
+  phone,
+  license_number,
+  licensed_state,
+  brokerage_name,
+  brokerage_verification_status,
+  w9_status,
+  payout_setup_status,
+  approval_status,
+  service_areas,
+  service_radius_miles,
+  available_hours,
+  required_notice_minutes,
+  available,
+  pending_earnings_cents,
+  acceptance_rate,
+  average_response_seconds,
+  terms_accepted_at
+)
 values (
   '20000000-0000-0000-0000-000000000001',
   '00000000-0000-0000-0000-000000000002',
@@ -32,26 +70,55 @@ values (
   '+15551201111',
   'FL-347812',
   'FL',
+  'Harbor Realty',
+  'verified',
+  'verified',
+  'ready',
+  'approved',
   array['33131', '33132', '33133'],
+  12,
+  'Mon-Fri 9:00 AM-6:00 PM',
+  60,
   true,
-  true,
-  now(),
-  now(),
-  12000
+  12000,
+  0.92,
+  48,
+  now()
 ) on conflict (id) do nothing;
 
-insert into public.showing_requests (id, buyer_id, property_address, zip_code, preferred_time, notes, attendees, serious_interest_confirmed, status, payment_status, showing_fee_cents, payment_completed_at)
+insert into public.showing_requests (
+  id,
+  buyer_id,
+  property_address,
+  mls_number,
+  property_summary,
+  zip_code,
+  preferred_time,
+  safety_notes,
+  attendees,
+  serious_interest_confirmed,
+  status,
+  payment_status,
+  showing_fee_cents,
+  agent_payout_cents,
+  platform_fee_cents,
+  payment_completed_at
+)
 values (
   '30000000-0000-0000-0000-000000000001',
   '10000000-0000-0000-0000-000000000001',
   '88 Brickell Plaza, Miami, FL',
+  'A11550123',
+  '2 bed condo, buyer-entered info only',
   '33131',
   now() + interval '1 day',
   'Buyer wants to compare natural light and parking access.',
   2,
   true,
-  'searching_for_agent',
-  'paid',
+  'pending',
+  'held',
   7500,
+  6000,
+  1500,
   now()
 ) on conflict (id) do nothing;
