@@ -1,4 +1,5 @@
 import { BadgeCheck } from "lucide-react";
+import { FileField } from "@/components/file-field";
 import { AgentOnboardingSteps } from "@/components/onboarding";
 import { AppShell, Card, Field, Section } from "@/components/ui";
 
@@ -20,7 +21,7 @@ export default function AgentLicenseStepPage() {
               <Field label="Real estate license number" name="licenseNumber" />
               <Field label="Active license state" name="licenseState" placeholder="FL" />
               <Field label="License expiration date" name="licenseExpirationDate" type="date" />
-              <Field label="License upload" name="licenseFile" type="file" />
+              <FileField label="License upload" name="licenseFile" accept="image/*,.pdf" maxMb={3} />
             </div>
             <button className="min-h-11 rounded-md bg-teal-700 px-4 text-sm font-semibold text-white hover:bg-teal-800">
               Submit license for review

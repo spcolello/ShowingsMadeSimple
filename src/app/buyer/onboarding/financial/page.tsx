@@ -1,5 +1,6 @@
 import { CreditCard } from "lucide-react";
-import { AppShell, Card, Field, Section } from "@/components/ui";
+import { FileField } from "@/components/file-field";
+import { AppShell, Card, Section } from "@/components/ui";
 import { BuyerOnboardingSteps } from "@/components/onboarding";
 
 export default function BuyerFinancialStepPage() {
@@ -34,7 +35,12 @@ export default function BuyerFinancialStepPage() {
             <h2 className="font-semibold">Option B: Pre-qualification letter</h2>
             <form action="/api/buyer/financial" method="post" encType="multipart/form-data" className="mt-4 grid gap-4">
               <input type="hidden" name="method" value="prequalification_letter" />
-              <Field label="Upload PDF, image, or document" name="prequalificationLetter" type="file" />
+              <FileField
+                label="Upload PDF, image, or document"
+                name="prequalificationLetter"
+                accept="image/*,.pdf,.doc,.docx"
+                maxMb={3}
+              />
               <button className="min-h-11 rounded-md bg-teal-700 px-4 text-sm font-semibold text-white hover:bg-teal-800">
                 Upload letter
               </button>

@@ -1,4 +1,5 @@
 import { ShieldCheck } from "lucide-react";
+import { FileField } from "@/components/file-field";
 import { AppShell, Card, Field, Section } from "@/components/ui";
 import { BuyerOnboardingSteps } from "@/components/onboarding";
 
@@ -17,9 +18,12 @@ export default function BuyerIdentityStepPage() {
           </div>
         </div>
         <Card>
+          <p className="mb-4 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+            Vercel limits server uploads. Use compressed images or PDFs. Government ID and selfie files must each be 1.5 MB or smaller.
+          </p>
           <form action="/api/buyer/identity" method="post" encType="multipart/form-data" className="grid gap-4">
-            <Field label="Government ID upload" name="governmentId" type="file" />
-            <Field label="Selfie upload or capture" name="selfie" type="file" />
+            <FileField label="Government ID upload" name="governmentId" accept="image/*,.pdf" maxMb={1.5} />
+            <FileField label="Selfie upload or capture" name="selfie" accept="image/*" maxMb={1.5} />
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Street address" name="street" />
               <Field label="City" name="city" />
