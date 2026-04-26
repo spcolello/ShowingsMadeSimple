@@ -33,14 +33,17 @@ export async function sendAgentVerificationEmail(email: string) {
     return { mocked: true };
   }
 
-  await supabase.auth.admin.generateLink({
+  const { error } = await supabase.auth.resend({
     type: "signup",
     email,
-    password: crypto.randomUUID(),
     options: {
-      redirectTo: `${env.appUrl}/agent/onboarding/email?email=${encodeURIComponent(email)}&verified=true`,
+      emailRedirectTo: `${env.appUrl}/api/auth/callback`,
     },
   });
+
+  if (error) {
+    throw error;
+  }
 
   return { mocked: false };
 }

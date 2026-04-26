@@ -62,7 +62,7 @@ export type AgentProfile = {
   w9FileUrl?: string;
   w9VerificationStatus: VerificationStatus;
   payoutProviderAccountId?: string;
-  payoutSetupStatus: "not_started" | "pending" | "ready";
+  payoutSetupStatus: "incomplete" | "not_started" | "pending" | "ready";
   payoutsEnabled: boolean;
   agentOnboardingCompleted: boolean;
   approvalStatus: AgentApprovalStatus;

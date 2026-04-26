@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { env, hasSupabaseServerConfig } from "./env";
+import { env, hasSupabasePublicConfig, hasSupabaseServerConfig } from "./env";
 
 export function getSupabaseAdmin() {
   if (!hasSupabaseServerConfig()) {
@@ -7,6 +7,16 @@ export function getSupabaseAdmin() {
   }
 
   return createClient(env.supabaseUrl!, env.supabaseServiceRoleKey!, {
+    auth: { persistSession: false },
+  });
+}
+
+export function getSupabasePublic() {
+  if (!hasSupabasePublicConfig()) {
+    return null;
+  }
+
+  return createClient(env.supabaseUrl!, env.supabaseAnonKey!, {
     auth: { persistSession: false },
   });
 }

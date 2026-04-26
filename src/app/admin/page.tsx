@@ -10,44 +10,129 @@ import {
   demoShowings,
   formatMoney,
 } from "@/lib/demo-data";
+import { getSupabaseAdmin } from "@/lib/supabase";
 
-const overview = [
-  {
-    id: "buyers",
-    title: "Buyers",
-    total: 1,
-    pending: demoBuyer.identityVerificationStatus === "pending_review" || demoBuyer.financialVerificationStatus === "pending_review" ? 1 : 0,
-    recent: "Buyer verification updated",
-  },
-  {
-    id: "agents",
-    title: "Agents",
-    total: demoAgents.length,
-    pending: demoAgents.filter((agent) => agent.approvalStatus === "pending_review").length,
-    recent: "Agent onboarding queue reviewed",
-  },
-  {
-    id: "showings",
-    title: "Showings",
-    total: demoShowings.length,
-    pending: demoShowings.filter((showing) => showing.status === "pending").length,
-    recent: "Payment held and agent broadcast queued",
-  },
-  {
-    id: "payments",
-    title: "Payments",
-    total: demoShowings.filter((showing) => showing.paymentStatus !== "unpaid").length,
-    pending: demoShowings.filter((showing) => showing.paymentStatus === "held").length,
-    recent: `${formatMoney(demoPayouts.reduce((sum, payout) => sum + payout.amountCents, 0))} payout activity`,
-  },
-  {
-    id: "safety",
-    title: "Safety flags",
-    total: demoSafetyFlags.length,
-    pending: demoSafetyFlags.filter((flag) => flag.status === "open").length,
-    recent: demoSafetyFlags[0]?.note ?? "No recent flags",
-  },
-];
+type AdminBuyer = {
+  id: string;
+  fullName: string;
+  email: string;
+  emailVerified: boolean;
+  identityVerificationStatus: string;
+  financialVerificationStatus: string;
+};
+
+type AdminAgent = {
+  id: string;
+  name: string;
+  licenseNumber: string;
+  brokerageName: string;
+  approvalStatus: string;
+};
+
+type AdminShowing = {
+  id: string;
+  propertyAddress?: string;
+  mlsNumber?: string;
+  status: string;
+  paymentStatus: string;
+  showingFeeCents: number;
+  assignedAgentId?: string;
+};
+
+type AdminDocument = {
+  id: string;
+  ownerId: string;
+  type: string;
+  status: string;
+};
+
+type AdminSafetyFlag = {
+  id: string;
+  severity: string;
+  status: string;
+  note: string;
+};
+
+async function loadAdminData() {
+  const supabase = getSupabaseAdmin();
+
+  if (!supabase) {
+    return {
+      buyers: [{
+        id: demoBuyer.id,
+        fullName: demoBuyer.fullName,
+        email: demoBuyer.email,
+        emailVerified: demoBuyer.emailVerified,
+        identityVerificationStatus: demoBuyer.identityVerificationStatus,
+        financialVerificationStatus: demoBuyer.financialVerificationStatus,
+      }],
+      agents: demoAgents.map((agent) => ({
+        id: agent.id,
+        name: agent.name,
+        licenseNumber: agent.licenseNumber,
+        brokerageName: agent.brokerageName,
+        approvalStatus: agent.approvalStatus,
+      })),
+      showings: demoShowings,
+      documents: demoDocuments,
+      payouts: demoPayouts,
+      safetyFlags: demoSafetyFlags,
+      auditLogs: demoComplianceLogs,
+    };
+  }
+
+  const [buyersResult, agentsResult, showingsResult, documentsResult, paymentsResult, safetyResult, auditResult] =
+    await Promise.all([
+      supabase.from("buyer_profiles").select("*").order("created_at", { ascending: false }),
+      supabase.from("agent_profiles").select("*").order("created_at", { ascending: false }),
+      supabase.from("showing_requests").select("*").order("requested_at", { ascending: false }),
+      supabase.from("verification_documents").select("*").order("uploaded_at", { ascending: false }),
+      supabase.from("payments").select("*").order("created_at", { ascending: false }),
+      supabase.from("safety_flags").select("*").order("created_at", { ascending: false }),
+      supabase.from("audit_logs").select("*").order("created_at", { ascending: false }).limit(20),
+    ]);
+
+  return {
+    buyers: (buyersResult.data ?? []).map((buyer) => ({
+      id: buyer.id,
+      fullName: buyer.full_name ?? "Buyer",
+      email: buyer.email ?? buyer.user_id,
+      emailVerified: buyer.email_verified ?? false,
+      identityVerificationStatus: buyer.identity_verification_status ?? "pending_review",
+      financialVerificationStatus: buyer.financial_verification_status ?? "pending_review",
+    })) satisfies AdminBuyer[],
+    agents: (agentsResult.data ?? []).map((agent) => ({
+      id: agent.id,
+      name: agent.name ?? "Agent",
+      licenseNumber: agent.license_number ?? "Pending",
+      brokerageName: agent.brokerage_name ?? "Pending brokerage",
+      approvalStatus: agent.approval_status ?? "pending_review",
+    })) satisfies AdminAgent[],
+    showings: (showingsResult.data ?? []).map((showing) => ({
+      id: showing.id,
+      propertyAddress: showing.property_address,
+      mlsNumber: showing.mls_number,
+      status: showing.status,
+      paymentStatus: showing.payment_status,
+      showingFeeCents: showing.showing_fee_cents ?? 0,
+      assignedAgentId: undefined,
+    })) satisfies AdminShowing[],
+    documents: (documentsResult.data ?? []).map((document) => ({
+      id: document.id,
+      ownerId: document.owner_user_id,
+      type: document.document_type,
+      status: document.status ?? document.review_status ?? "pending_review",
+    })) satisfies AdminDocument[],
+    payouts: paymentsResult.data ?? [],
+    safetyFlags: (safetyResult.data ?? []).map((flag) => ({
+      id: flag.id,
+      severity: flag.severity,
+      status: flag.status,
+      note: flag.note,
+    })) satisfies AdminSafetyFlag[],
+    auditLogs: auditResult.data ?? [],
+  };
+}
 
 function AdminActionForm({
   action,
@@ -80,7 +165,47 @@ function AdminActionForm({
   );
 }
 
-export default function AdminPage() {
+export default async function AdminPage() {
+  const { buyers, agents, showings, documents, payouts, safetyFlags, auditLogs } = await loadAdminData();
+  const primaryBuyer = buyers[0];
+  const overview = [
+    {
+      id: "buyers",
+      title: "Buyers",
+      total: buyers.length,
+      pending: buyers.filter((buyer) => buyer.identityVerificationStatus === "pending_review" || buyer.financialVerificationStatus === "pending_review").length,
+      recent: "Buyer verification queue",
+    },
+    {
+      id: "agents",
+      title: "Agents",
+      total: agents.length,
+      pending: agents.filter((agent) => agent.approvalStatus === "pending_review").length,
+      recent: "Agent onboarding queue",
+    },
+    {
+      id: "showings",
+      title: "Showings",
+      total: showings.length,
+      pending: showings.filter((showing) => showing.status === "pending").length,
+      recent: "Showing request operations",
+    },
+    {
+      id: "payments",
+      title: "Payments",
+      total: showings.filter((showing) => showing.paymentStatus !== "unpaid").length,
+      pending: showings.filter((showing) => showing.paymentStatus === "held").length,
+      recent: `${payouts.length} payment records`,
+    },
+    {
+      id: "safety",
+      title: "Safety flags",
+      total: safetyFlags.length,
+      pending: safetyFlags.filter((flag) => flag.status === "open").length,
+      recent: safetyFlags[0]?.note ?? "No recent flags",
+    },
+  ];
+
   return (
     <AppShell>
       <Section>
@@ -117,30 +242,35 @@ export default function AdminPage() {
           <Card className="lg:col-span-2" id="buyers">
             <h2 className="text-lg font-semibold">Buyers</h2>
             <div className="mt-4 rounded-md border border-slate-200 p-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <p className="font-medium">{demoBuyer.fullName}</p>
-                  <p className="text-sm text-slate-600">{demoBuyer.email}</p>
+              {buyers.map((buyer) => (
+                <div key={buyer.id} className="border-b border-slate-200 py-3 last:border-b-0">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p className="font-medium">{buyer.fullName}</p>
+                      <p className="text-sm text-slate-600">{buyer.email}</p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <StatusBadge status={buyer.emailVerified ? "email_verified" : "email_pending"} />
+                      <StatusBadge status={buyer.identityVerificationStatus} />
+                      <StatusBadge status={buyer.financialVerificationStatus} />
+                    </div>
+                  </div>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <AdminActionForm action="approve_buyer_identity" subjectId={buyer.id} label="Approve ID" />
+                    <AdminActionForm action="reject_buyer_identity" subjectId={buyer.id} label="Reject ID" />
+                    <AdminActionForm action="approve_buyer_financial" subjectId={buyer.id} label="Approve financial" />
+                    <AdminActionForm action="suspend_buyer" subjectId={buyer.id} label="Suspend buyer" />
+                  </div>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  <StatusBadge status={demoBuyer.emailVerified ? "email_verified" : "email_pending"} />
-                  <StatusBadge status={demoBuyer.identityVerificationStatus} />
-                  <StatusBadge status={demoBuyer.financialVerificationStatus} />
-                </div>
-              </div>
-              <div className="mt-4 flex flex-wrap gap-2">
-                <AdminActionForm action="approve_buyer_identity" subjectId={demoBuyer.id} label="Approve ID" />
-                <AdminActionForm action="reject_buyer_identity" subjectId={demoBuyer.id} label="Reject ID" />
-                <AdminActionForm action="approve_buyer_financial" subjectId={demoBuyer.id} label="Approve financial" />
-                <AdminActionForm action="suspend_buyer" subjectId={demoBuyer.id} label="Suspend buyer" />
-              </div>
+              ))}
+              {!primaryBuyer && <p className="text-sm text-slate-600">No buyers yet.</p>}
             </div>
           </Card>
 
           <Card id="agents">
             <h2 className="text-lg font-semibold">Agents</h2>
             <div className="mt-4 grid gap-3">
-              {demoAgents.map((agent) => (
+              {agents.map((agent) => (
                 <div key={agent.id} className="rounded-md border border-slate-200 p-4">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
@@ -172,7 +302,7 @@ export default function AdminPage() {
           <Card id="showings">
             <h2 className="text-lg font-semibold">Showings</h2>
             <div className="mt-4 grid gap-3">
-              {demoShowings.map((showing) => (
+              {showings.map((showing) => (
                 <div key={showing.id} className="rounded-md border border-slate-200 p-4">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <p className="font-medium">{showing.propertyAddress ?? showing.mlsNumber}</p>
@@ -180,9 +310,9 @@ export default function AdminPage() {
                   </div>
                   <p className="mt-1 text-sm text-slate-600">{showing.paymentStatus} - {formatMoney(showing.showingFeeCents)}</p>
                   <div className="mt-4 flex flex-wrap gap-2">
-                    <AdminActionForm action="reassign_showing" subjectId={showing.id} agentId={demoAgents[0].id} label="Reassign to Sam" />
+                    <AdminActionForm action="reassign_showing" subjectId={showing.id} agentId={agents[0]?.id} label="Reassign" />
                     <AdminActionForm action="refund_payment" subjectId={showing.id} label="Refund" />
-                    <AdminActionForm action="mark_showing_complete" subjectId={showing.id} agentId={showing.assignedAgentId ?? demoAgents[0].id} label="Mark complete" />
+                    <AdminActionForm action="mark_showing_complete" subjectId={showing.id} agentId={showing.assignedAgentId ?? agents[0]?.id} label="Mark complete" />
                   </div>
                 </div>
               ))}
@@ -192,7 +322,7 @@ export default function AdminPage() {
           <Card id="payments">
             <h2 className="text-lg font-semibold">Payments</h2>
             <div className="mt-4 grid gap-3">
-              {demoShowings.map((showing) => (
+              {showings.map((showing) => (
                 <div key={showing.id} className="flex items-center justify-between rounded-md border border-slate-200 p-3 text-sm">
                   <span>{showing.propertyAddress ?? showing.id}</span>
                   <span>{formatMoney(showing.showingFeeCents)} - {showing.paymentStatus}</span>
@@ -204,7 +334,7 @@ export default function AdminPage() {
           <Card id="safety">
             <h2 className="text-lg font-semibold">Safety flags</h2>
             <div className="mt-4 grid gap-3">
-              {demoSafetyFlags.map((flag) => (
+              {safetyFlags.map((flag) => (
                 <div key={flag.id} className="rounded-md border border-slate-200 p-4">
                   <div className="flex items-center justify-between gap-3">
                     <StatusBadge status={flag.severity} />
@@ -219,7 +349,7 @@ export default function AdminPage() {
           <Card className="lg:col-span-2">
             <h2 className="text-lg font-semibold">Compliance document review</h2>
             <div className="mt-4 grid gap-3 md:grid-cols-2">
-              {demoDocuments.map((document) => (
+              {documents.map((document) => (
                 <div key={document.id} className="rounded-md border border-slate-200 p-4">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
@@ -246,12 +376,12 @@ export default function AdminPage() {
                   <tr><th className="py-2">When</th><th>Actor</th><th>Action</th><th>Subject</th></tr>
                 </thead>
                 <tbody>
-                  {demoComplianceLogs.map((log) => (
+                  {auditLogs.map((log) => (
                     <tr key={log.id} className="border-t border-slate-200">
-                      <td className="py-3">{new Date(log.createdAt).toLocaleString()}</td>
-                      <td>{log.actor}</td>
+                      <td className="py-3">{new Date(log.created_at ?? log.createdAt).toLocaleString()}</td>
+                      <td>{log.actor ?? log.admin_user_id ?? "admin"}</td>
                       <td>{log.action}</td>
-                      <td>{log.subject}</td>
+                      <td>{log.subject ?? log.subject_id ?? ""}</td>
                     </tr>
                   ))}
                 </tbody>

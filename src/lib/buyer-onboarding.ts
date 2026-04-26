@@ -33,14 +33,17 @@ export async function sendBuyerVerificationEmail(email: string) {
     return { mocked: true };
   }
 
-  await supabase.auth.admin.generateLink({
+  const { error } = await supabase.auth.resend({
     type: "signup",
     email,
-    password: crypto.randomUUID(),
     options: {
-      redirectTo: `${env.appUrl}/buyer/onboarding/email?email=${encodeURIComponent(email)}&verified=true`,
+      emailRedirectTo: `${env.appUrl}/api/auth/callback`,
     },
   });
+
+  if (error) {
+    throw error;
+  }
 
   return { mocked: false };
 }

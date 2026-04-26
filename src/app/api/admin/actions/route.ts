@@ -74,6 +74,24 @@ export async function POST(request: Request) {
       .eq("id", payload.subjectId);
   }
 
+  if (payload.action === "approve_buyer_identity" || payload.action === "approve_buyer_financial") {
+    const { data: buyer } = await supabase
+      .from("buyer_profiles")
+      .select("identity_verification_status, financial_verification_status")
+      .eq("id", payload.subjectId)
+      .maybeSingle();
+
+    if (
+      buyer?.identity_verification_status === "approved" &&
+      buyer?.financial_verification_status === "approved"
+    ) {
+      await supabase
+        .from("buyer_profiles")
+        .update({ buyer_onboarding_completed: true })
+        .eq("id", payload.subjectId);
+    }
+  }
+
   if (payload.action === "approve_agent" || payload.action === "reject_agent" || payload.action === "suspend_agent") {
     const approvalStatus =
       payload.action === "approve_agent"
@@ -82,6 +100,27 @@ export async function POST(request: Request) {
           ? "rejected"
           : "suspended";
     await supabase.from("agent_profiles").update({ approval_status: approvalStatus }).eq("id", payload.subjectId);
+  }
+
+  if (payload.action === "approve_agent") {
+    const { data: agent } = await supabase
+      .from("agent_profiles")
+      .select("license_verification_status, brokerage_verification_status, w9_verification_status, payout_setup_status, payouts_enabled")
+      .eq("id", payload.subjectId)
+      .maybeSingle();
+
+    if (
+      agent?.license_verification_status === "approved" &&
+      agent?.brokerage_verification_status === "approved" &&
+      agent?.w9_verification_status === "approved" &&
+      agent?.payout_setup_status === "ready" &&
+      agent?.payouts_enabled === true
+    ) {
+      await supabase
+        .from("agent_profiles")
+        .update({ agent_onboarding_completed: true })
+        .eq("id", payload.subjectId);
+    }
   }
 
   if (payload.action === "suspend_buyer") {
@@ -113,7 +152,10 @@ export async function POST(request: Request) {
   if (payload.action === "approve_document" || payload.action === "reject_document") {
     await supabase
       .from("verification_documents")
-      .update({ status: payload.action === "approve_document" ? "approved" : "rejected" })
+      .update({
+        status: payload.action === "approve_document" ? "approved" : "rejected",
+        internal_notes: payload.note,
+      })
       .eq("id", payload.subjectId);
   }
 

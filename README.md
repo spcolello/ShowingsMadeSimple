@@ -36,6 +36,7 @@ supabase/migrations/002_rls_policies.sql
 supabase/migrations/003_mvp_alignment.sql
 supabase/migrations/004_agent_onboarding.sql
 supabase/migrations/005_admin_access.sql
+supabase/migrations/006_real_auth_profiles.sql
 supabase/seed/seed.sql
 ```
 

@@ -10,13 +10,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             Showings Made Simple
           </Link>
           <div className="flex items-center gap-3">
-            <div className="hidden items-center gap-4 text-sm font-medium text-slate-600 md:flex">
-              <Link href="/buyer/dashboard">Buyer</Link>
-              <Link href="/buyer/profile">Profile</Link>
-              <Link href="/agent/dashboard">Agent</Link>
-              <Link href="/admin">Admin</Link>
-              <Link href="/terms">Terms</Link>
-            </div>
+            <Link
+              href="/buyer/onboarding"
+              className="hidden min-h-10 items-center rounded-md bg-teal-700 px-3 text-sm font-semibold text-white hover:bg-teal-800 sm:inline-flex"
+            >
+              Sign up / Get started
+            </Link>
             <Link
               href="/login"
               className="inline-flex min-h-10 items-center rounded-md border border-slate-300 px-3 text-sm font-semibold text-slate-800 hover:bg-slate-100"

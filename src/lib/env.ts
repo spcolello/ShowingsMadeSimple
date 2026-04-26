@@ -15,3 +15,7 @@ export const env = {
 export function hasSupabaseServerConfig() {
   return Boolean(env.supabaseUrl && env.supabaseServiceRoleKey);
 }
+
+export function hasSupabasePublicConfig() {
+  return Boolean(env.supabaseUrl && env.supabaseAnonKey);
+}

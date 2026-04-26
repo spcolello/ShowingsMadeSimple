@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { sendBuyerVerificationEmail } from "@/lib/buyer-onboarding";
-import { getSupabaseAdmin } from "@/lib/supabase";
+import { env } from "@/lib/env";
+import { getSupabaseAdmin, getSupabasePublic } from "@/lib/supabase";
 
 const schema = z
   .object({
@@ -28,14 +29,17 @@ export async function POST(request: Request) {
   }
 
   const supabase = getSupabaseAdmin();
+  const auth = getSupabasePublic();
 
-  if (supabase) {
-    const { data, error } = await supabase.auth.admin.createUser({
+  if (supabase && auth) {
+    const { data, error } = await auth.auth.signUp({
       email: payload.data.email,
       password: payload.data.password,
       phone: payload.data.phone,
-      email_confirm: false,
-      user_metadata: { full_name: payload.data.fullName, role: "buyer" },
+      options: {
+        emailRedirectTo: `${env.appUrl}/api/auth/callback`,
+        data: { full_name: payload.data.fullName, role: "buyer" },
+      },
     });
 
     if (error) {
@@ -50,15 +54,19 @@ export async function POST(request: Request) {
         id: data.user.id,
         role: "buyer",
         email: payload.data.email,
+        full_name: payload.data.fullName,
+        phone_number: payload.data.phone,
+        email_verified: false,
       });
 
       await supabase.from("buyer_profiles").insert({
         user_id: data.user.id,
         full_name: payload.data.fullName,
         phone: payload.data.phone,
+        phone_number: payload.data.phone,
         email_verified: false,
-        identity_verification_status: "not_started",
-        financial_verification_status: "not_started",
+        identity_verification_status: "pending_review",
+        financial_verification_status: "pending_review",
         suspended: false,
         buyer_onboarding_completed: false,
       });

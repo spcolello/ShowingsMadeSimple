@@ -9,9 +9,19 @@ const roleRoutes = [
 export function middleware(request: NextRequest) {
   const demoRole = request.cookies.get("sms_demo_role")?.value;
   const matched = roleRoutes.find((route) => request.nextUrl.pathname.startsWith(route.prefix));
+  const pathname = request.nextUrl.pathname;
+  const publicRoleRoute =
+    pathname.startsWith("/buyer/onboarding") ||
+    pathname.startsWith("/buyer/login") ||
+    pathname.startsWith("/agent/onboarding") ||
+    pathname.startsWith("/agent/login");
 
-  if (request.nextUrl.pathname.startsWith("/admin") && demoRole !== "admin") {
+  if (pathname.startsWith("/admin") && demoRole !== "admin") {
     return NextResponse.redirect(new URL("/login?error=Admin access required.", request.url));
+  }
+
+  if (matched && !publicRoleRoute && !demoRole) {
+    return NextResponse.redirect(new URL("/login?error=Login required.", request.url));
   }
 
   if (matched && demoRole && demoRole !== matched.role) {
