@@ -11,7 +11,7 @@ export type ShowingStatus =
 export type VerificationStatus = "not_started" | "pending_review" | "approved" | "rejected";
 export type AgentApprovalStatus = "pending_review" | "approved" | "rejected" | "suspended";
 export type PaymentStatus = "unpaid" | "paid" | "held" | "released" | "refunded" | "failed";
-export type DocumentStatus = "pending_review" | "verified" | "rejected";
+export type DocumentStatus = "pending_review" | "approved" | "verified" | "rejected";
 export type DocumentType =
   | "government_id"
   | "selfie"
@@ -45,21 +45,39 @@ export type BuyerProfile = {
 export type AgentProfile = {
   id: string;
   name: string;
+  email: string;
   phone: string;
+  emailVerified: boolean;
   licenseNumber: string;
-  licensedState: string;
+  licenseState: string;
+  licenseExpirationDate: string;
+  licenseFileUrl?: string;
+  licenseVerificationStatus: VerificationStatus;
   brokerageName: string;
+  brokerageAddress: string;
+  brokerManagerName: string;
+  brokerManagerEmail: string;
+  brokerManagerPhone: string;
   brokerageVerificationStatus: VerificationStatus;
-  w9Status: DocumentStatus;
+  w9FileUrl?: string;
+  w9VerificationStatus: VerificationStatus;
+  payoutProviderAccountId?: string;
   payoutSetupStatus: "not_started" | "pending" | "ready";
+  payoutsEnabled: boolean;
+  agentOnboardingCompleted: boolean;
   approvalStatus: AgentApprovalStatus;
   serviceAreas: string[];
+  availableDays: string[];
+  availableStartTime: string;
+  availableEndTime: string;
   serviceRadiusMiles: number;
   availableHours: string;
   requiredNoticeMinutes: number;
-  available: boolean;
+  isAvailable: boolean;
   termsAcceptedAt?: string;
   pendingEarningsCents: number;
+  totalEarningsCents: number;
+  completedShowingsCount: number;
   acceptanceRate: number;
   averageResponseSeconds: number;
 };

@@ -34,6 +34,7 @@ Run the SQL files in order:
 supabase/migrations/001_initial_schema.sql
 supabase/migrations/002_rls_policies.sql
 supabase/migrations/003_mvp_alignment.sql
+supabase/migrations/004_agent_onboarding.sql
 supabase/seed/seed.sql
 ```
 
@@ -66,6 +67,12 @@ RLS policies scope buyer, agent, and admin access. Server-side workflow routes u
 - `/buyer/onboarding/financial`
 - `/buyer/onboarding/complete`
 - `/agent/onboarding`
+- `/agent/onboarding/email`
+- `/agent/onboarding/license`
+- `/agent/onboarding/brokerage`
+- `/agent/onboarding/tax`
+- `/agent/onboarding/payout`
+- `/agent/onboarding/complete`
 - `/buyer/dashboard`
 - `/buyer/profile`
 - `/agent/dashboard`
@@ -82,6 +89,14 @@ RLS policies scope buyer, agent, and admin access. Server-side workflow routes u
 - `POST /api/buyer/email-verification` verifies or resends the email code/link
 - `POST /api/buyer/identity` stores ID, selfie, and address for review
 - `POST /api/buyer/financial` stores soft-credit consent or pre-qualification letter for review
+- `POST /api/agent/account` creates a pending agent and sends email verification
+- `POST /api/agent/email-verification` verifies or resends the agent email code/link
+- `POST /api/agent/license` stores license details and license document for review
+- `POST /api/agent/brokerage` stores brokerage and broker/manager details
+- `POST /api/agent/tax` stores W-9 upload for review
+- `POST /api/agent/payout` stores safe Stripe Connect payout setup fields
+- `POST /api/agent/availability` saves available days, hours, service radius, and availability toggle
+- `POST /api/showings/decline` records an agent decline
 - `GET /api/stripe/checkout` starts Stripe Checkout or mock checkout
 - `POST /api/stripe/webhook` marks payment complete and starts agent matching
 - `POST /api/sms/notify-agents` sends SMS alerts to matching agents

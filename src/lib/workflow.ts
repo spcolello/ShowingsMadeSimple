@@ -99,7 +99,7 @@ export async function notifyMatchingAgents(showingId: string) {
     .from("agent_profiles")
     .select("*")
     .eq("approval_status", "approved")
-    .eq("available", true)
+    .eq("is_available", true)
     .contains("service_areas", [showing.zip_code])
     .not("phone", "is", null);
 

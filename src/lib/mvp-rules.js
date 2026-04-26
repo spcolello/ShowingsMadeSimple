@@ -12,6 +12,19 @@ export function canBroadcastShowing(showing) {
   return showing.paymentStatus === "held" && showing.status === "pending";
 }
 
+export function isAgentReady(agent) {
+  return (
+    agent.emailVerified === true &&
+    agent.licenseVerificationStatus === "approved" &&
+    agent.brokerageVerificationStatus === "approved" &&
+    agent.w9VerificationStatus === "approved" &&
+    agent.payoutSetupStatus === "ready" &&
+    agent.payoutsEnabled === true &&
+    agent.agentOnboardingCompleted === true &&
+    agent.approvalStatus === "approved"
+  );
+}
+
 export function minutesUntil(requestedTime, now = new Date()) {
   return Math.floor((new Date(requestedTime).getTime() - now.getTime()) / 60000);
 }
@@ -26,8 +39,8 @@ export function findEligibleAgents(agents, showing, now = new Date()) {
       const hasArea = agent.serviceAreas?.includes(showing.zipCode);
       const hasNotice = minutesUntil(showing.preferredTime, now) >= agent.requiredNoticeMinutes;
       return (
-        agent.approvalStatus === "approved" &&
-        agent.available === true &&
+        isAgentReady(agent) &&
+        agent.isAvailable === true &&
         hasArea &&
         hasNotice &&
         agent.phone

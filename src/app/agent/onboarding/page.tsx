@@ -1,44 +1,44 @@
-import { BadgeCheck } from "lucide-react";
-import { AppShell, ButtonLink, Card, Field, Section } from "@/components/ui";
+import { UserPlus } from "lucide-react";
+import { AgentOnboardingSteps } from "@/components/onboarding";
+import { AppShell, Card, Field, Section } from "@/components/ui";
 
-export default function AgentOnboardingPage() {
+export default async function AgentAccountStepPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const params = await searchParams;
+
   return (
     <AppShell>
       <Section className="max-w-3xl">
+        <AgentOnboardingSteps current="account" />
         <div className="mb-6 flex items-center gap-3">
-          <BadgeCheck className="text-teal-700" />
+          <UserPlus className="text-teal-700" />
           <div>
-            <h1 className="text-2xl font-semibold">Agent license profile</h1>
+            <h1 className="text-2xl font-semibold">Create agent account</h1>
             <p className="text-sm text-slate-600">
-              Manual license review and Stripe Connect payout onboarding placeholder.
+              Start pending review. Email verification is required before license review.
             </p>
           </div>
         </div>
         <Card>
-          <form className="grid gap-4">
+          {params.error && (
+            <p className="mb-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+              {params.error}
+            </p>
+          )}
+          <form action="/api/agent/account" method="post" className="grid gap-4">
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Name" name="name" />
+              <Field label="Full name" name="fullName" />
+              <Field label="Email address" name="email" type="email" />
               <Field label="Phone number" name="phone" type="tel" />
-              <Field label="License number" name="licenseNumber" />
-              <Field label="Licensed state" name="licensedState" placeholder="FL" />
-              <Field label="License upload" name="licenseUpload" type="file" />
-              <Field label="Brokerage name" name="brokerageName" />
-              <Field label="W-9 upload" name="w9" type="file" />
-              <Field label="Service ZIP codes" name="serviceAreas" placeholder="33131,33132" />
-              <Field label="Service radius in miles" name="serviceRadiusMiles" type="number" placeholder="12" />
-              <Field label="Available hours" name="availableHours" placeholder="Mon-Fri 9 AM-6 PM" />
-              <Field label="Required notice minutes" name="requiredNoticeMinutes" type="number" placeholder="60" />
-              <Field label="Stripe Connect placeholder" name="stripeConnect" required={false} />
+              <Field label="Password" name="password" type="password" />
+              <Field label="Confirm password" name="confirmPassword" type="password" />
             </div>
-            <label className="flex gap-3 text-sm text-slate-700">
-              <input type="checkbox" name="available" className="mt-1" />
-              I am available to receive showing alerts.
-            </label>
-            <label className="flex gap-3 text-sm text-slate-700">
-              <input type="checkbox" required className="mt-1" />I accept showing safety,
-              brokerage, and compliance obligations.
-            </label>
-            <ButtonLink href="/agent/dashboard">Submit profile</ButtonLink>
+            <button className="min-h-11 rounded-md bg-teal-700 px-4 text-sm font-semibold text-white hover:bg-teal-800">
+              Create account and send verification email
+            </button>
           </form>
         </Card>
       </Section>
