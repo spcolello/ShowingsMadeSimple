@@ -17,8 +17,15 @@ begin
 end $$;
 
 alter table public.buyer_profiles
+  add column if not exists email_verified boolean not null default false,
   add column if not exists identity_verification_status public.verification_status not null default 'not_started',
   add column if not exists financial_verification_status public.verification_status not null default 'not_started',
+  add column if not exists government_id_file_url text,
+  add column if not exists selfie_file_url text,
+  add column if not exists prequalification_letter_url text,
+  add column if not exists address jsonb,
+  add column if not exists soft_credit_check_consent boolean not null default false,
+  add column if not exists buyer_onboarding_completed boolean not null default false,
   add column if not exists address_confirmation text,
   add column if not exists suspended boolean not null default false;
 

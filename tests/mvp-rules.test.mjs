@@ -9,8 +9,10 @@ import {
 } from "../src/lib/mvp-rules.js";
 
 const verifiedBuyer = {
-  identityVerificationStatus: "verified",
-  financialVerificationStatus: "verified",
+  emailVerified: true,
+  identityVerificationStatus: "approved",
+  financialVerificationStatus: "approved",
+  buyerOnboardingCompleted: true,
   suspended: false,
 };
 

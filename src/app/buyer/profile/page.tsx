@@ -18,7 +18,14 @@ export default function BuyerProfilePage() {
               <Field label="Full name" name="fullName" placeholder={demoBuyer.fullName} />
               <Field label="Email" name="email" type="email" placeholder={demoBuyer.email} />
               <Field label="Phone" name="phone" type="tel" placeholder={demoBuyer.phone} />
-              <Field label="Address confirmation" name="addressConfirmation" placeholder={demoBuyer.addressConfirmation} />
+              <Field
+                label="Street address"
+                name="street"
+                placeholder={demoBuyer.address.street}
+              />
+              <Field label="City" name="city" placeholder={demoBuyer.address.city} />
+              <Field label="State" name="state" placeholder={demoBuyer.address.state} />
+              <Field label="ZIP code" name="zipCode" placeholder={demoBuyer.address.zipCode} />
             </div>
             <div className="flex flex-wrap gap-2">
               <StatusBadge status={`identity_${demoBuyer.identityVerificationStatus}`} />

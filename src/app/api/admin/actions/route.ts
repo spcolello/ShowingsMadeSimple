@@ -40,7 +40,7 @@ export async function POST(request: Request) {
       .from("buyer_profiles")
       .update({
         identity_verification_status:
-          payload.action === "approve_buyer_identity" ? "verified" : "rejected",
+          payload.action === "approve_buyer_identity" ? "approved" : "rejected",
       })
       .eq("id", payload.subjectId);
   }
@@ -50,7 +50,7 @@ export async function POST(request: Request) {
       .from("buyer_profiles")
       .update({
         financial_verification_status:
-          payload.action === "approve_buyer_financial" ? "verified" : "rejected",
+          payload.action === "approve_buyer_financial" ? "approved" : "rejected",
       })
       .eq("id", payload.subjectId);
   }

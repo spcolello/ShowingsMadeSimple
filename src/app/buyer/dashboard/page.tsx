@@ -1,8 +1,17 @@
 import Link from "next/link";
 import { AppShell, ButtonLink, Card, Section, StatusBadge } from "@/components/ui";
 import { demoAgents, demoBuyer, demoShowings, formatMoney } from "@/lib/demo-data";
+import { isBuyerReady } from "@/lib/mvp-rules";
 
 export default function BuyerDashboardPage() {
+  const buyerReady = isBuyerReady(demoBuyer);
+  const missingSteps = [
+    !demoBuyer.emailVerified ? "Verify email" : null,
+    demoBuyer.identityVerificationStatus !== "approved" ? "Identity approval" : null,
+    demoBuyer.financialVerificationStatus !== "approved" ? "Financial approval" : null,
+    !demoBuyer.buyerOnboardingCompleted ? "Complete onboarding" : null,
+  ].filter(Boolean);
+
   return (
     <AppShell>
       <Section>
@@ -15,8 +24,40 @@ export default function BuyerDashboardPage() {
               {demoBuyer.financialVerificationStatus}.
             </p>
           </div>
-          <ButtonLink href="/buyer/showings/new">Request showing</ButtonLink>
+          {buyerReady ? (
+            <ButtonLink href="/buyer/showings/new">Request showing</ButtonLink>
+          ) : (
+            <ButtonLink href="/buyer/onboarding" variant="secondary">Finish verification</ButtonLink>
+          )}
         </div>
+
+        <div className="mt-8 grid gap-4 md:grid-cols-4">
+          <Card>
+            <p className="text-sm text-slate-500">Email</p>
+            <div className="mt-3"><StatusBadge status={demoBuyer.emailVerified ? "verified" : "not_verified"} /></div>
+          </Card>
+          <Card>
+            <p className="text-sm text-slate-500">Identity</p>
+            <div className="mt-3"><StatusBadge status={demoBuyer.identityVerificationStatus} /></div>
+          </Card>
+          <Card>
+            <p className="text-sm text-slate-500">Financial</p>
+            <div className="mt-3"><StatusBadge status={demoBuyer.financialVerificationStatus} /></div>
+          </Card>
+          <Card>
+            <p className="text-sm text-slate-500">Showing access</p>
+            <p className="mt-2 text-xl font-semibold">{buyerReady ? "Unlocked" : "Blocked"}</p>
+          </Card>
+        </div>
+
+        {!buyerReady && (
+          <Card className="mt-4">
+            <h2 className="font-semibold">Missing steps</h2>
+            <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-slate-600">
+              {missingSteps.map((step) => <li key={step}>{step}</li>)}
+            </ul>
+          </Card>
+        )}
 
         <div className="mt-8 grid gap-4 md:grid-cols-3">
           <Card>

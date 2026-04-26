@@ -1,7 +1,9 @@
 export function isBuyerReady(buyer) {
   return (
-    buyer.identityVerificationStatus === "verified" &&
-    buyer.financialVerificationStatus === "verified" &&
+    buyer.emailVerified === true &&
+    buyer.identityVerificationStatus === "approved" &&
+    buyer.financialVerificationStatus === "approved" &&
+    buyer.buyerOnboardingCompleted === true &&
     buyer.suspended !== true
   );
 }
@@ -74,13 +76,13 @@ export function completeShowingAndCreatePayout(showing, agentId) {
 
 export function applyAdminAction(subject, action) {
   if (action === "approve_identity") {
-    return { ...subject, identityVerificationStatus: "verified" };
+    return { ...subject, identityVerificationStatus: "approved" };
   }
   if (action === "reject_identity") {
     return { ...subject, identityVerificationStatus: "rejected" };
   }
   if (action === "approve_financial") {
-    return { ...subject, financialVerificationStatus: "verified" };
+    return { ...subject, financialVerificationStatus: "approved" };
   }
   if (action === "approve_agent") {
     return { ...subject, approvalStatus: "approved" };

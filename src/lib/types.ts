@@ -8,7 +8,7 @@ export type ShowingStatus =
   | "cancelled"
   | "refunded";
 
-export type VerificationStatus = "not_started" | "pending_review" | "verified" | "rejected";
+export type VerificationStatus = "not_started" | "pending_review" | "approved" | "rejected";
 export type AgentApprovalStatus = "pending_review" | "approved" | "rejected" | "suspended";
 export type PaymentStatus = "unpaid" | "paid" | "held" | "released" | "refunded" | "failed";
 export type DocumentStatus = "pending_review" | "verified" | "rejected";
@@ -24,9 +24,20 @@ export type BuyerProfile = {
   fullName: string;
   email: string;
   phone: string;
+  emailVerified: boolean;
   identityVerificationStatus: VerificationStatus;
   financialVerificationStatus: VerificationStatus;
-  addressConfirmation: string;
+  governmentIdFileUrl?: string;
+  selfieFileUrl?: string;
+  prequalificationLetterUrl?: string;
+  address: {
+    street: string;
+    city: string;
+    state: string;
+    zipCode: string;
+  };
+  softCreditCheckConsent: boolean;
+  buyerOnboardingCompleted: boolean;
   suspended: boolean;
   termsAcceptedAt?: string;
 };

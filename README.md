@@ -61,6 +61,10 @@ RLS policies scope buyer, agent, and admin access. Server-side workflow routes u
 - `/buyer/login`
 - `/agent/login`
 - `/buyer/onboarding`
+- `/buyer/onboarding/email`
+- `/buyer/onboarding/identity`
+- `/buyer/onboarding/financial`
+- `/buyer/onboarding/complete`
 - `/agent/onboarding`
 - `/buyer/dashboard`
 - `/buyer/profile`
@@ -74,6 +78,10 @@ RLS policies scope buyer, agent, and admin access. Server-side workflow routes u
 ## API routes
 
 - `POST /api/showings` creates a showing and redirects to checkout
+- `POST /api/buyer/account` creates a pending buyer and sends email verification
+- `POST /api/buyer/email-verification` verifies or resends the email code/link
+- `POST /api/buyer/identity` stores ID, selfie, and address for review
+- `POST /api/buyer/financial` stores soft-credit consent or pre-qualification letter for review
 - `GET /api/stripe/checkout` starts Stripe Checkout or mock checkout
 - `POST /api/stripe/webhook` marks payment complete and starts agent matching
 - `POST /api/sms/notify-agents` sends SMS alerts to matching agents
