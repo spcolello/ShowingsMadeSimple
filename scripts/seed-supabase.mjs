@@ -50,6 +50,7 @@ async function checked(label, promise) {
 await createUser("00000000-0000-0000-0000-000000000001", "maya@example.com", "password123", "buyer", "Maya Johnson", "+15551201010");
 await createUser("00000000-0000-0000-0000-000000000002", "sam@example.com", "password123", "agent", "Sam Rivera", "+15551201111");
 await createUser("00000000-0000-0000-0000-000000000003", "admin@example.com", "password123", "admin", "Admin", "+15551209999");
+await createUser("00000000-0000-0000-0000-000000000004", "admin@gmail.com", "admin", "admin", "Admin", "+15551209998");
 
 await checked(
   "buyer profile",

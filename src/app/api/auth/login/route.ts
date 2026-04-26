@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { nextAgentOnboardingPath, nextBuyerOnboardingPath } from "@/lib/onboarding-routing";
 import { getSupabaseAdmin, getSupabasePublic } from "@/lib/supabase";
 
 const schema = z.object({
@@ -7,8 +8,7 @@ const schema = z.object({
   password: z.string().min(1),
 });
 
-function redirectWithAuthCookies(request: Request, role: string, userId: string) {
-  const path = role === "buyer" ? "/buyer/dashboard" : role === "agent" ? "/agent/dashboard" : "/admin";
+function redirectWithAuthCookies(request: Request, role: string, userId: string, path: string) {
   const response = NextResponse.redirect(new URL(path, request.url), { status: 303 });
   response.cookies.set("sms_demo_role", role, {
     httpOnly: true,
@@ -80,5 +80,23 @@ export async function POST(request: Request) {
     await admin.from("agent_profiles").update({ email_verified: true }).eq("user_id", data.user.id);
   }
 
-  return redirectWithAuthCookies(request, role, data.user.id);
+  let path = "/admin";
+  if (role === "buyer") {
+    const { data: profile } = await admin
+      .from("buyer_profiles")
+      .select("email_verified, government_id_file_url, selfie_file_url, address, soft_credit_check_consent, prequalification_letter_url, buyer_onboarding_completed")
+      .eq("user_id", data.user.id)
+      .maybeSingle();
+    path = nextBuyerOnboardingPath({ ...profile, email_verified: true });
+  }
+  if (role === "agent") {
+    const { data: profile } = await admin
+      .from("agent_profiles")
+      .select("email_verified, license_number, license_file_url, brokerage_name, broker_manager_name, broker_manager_email, w9_file_url, payout_provider_account_id, payout_setup_status, payouts_enabled, agent_onboarding_completed")
+      .eq("user_id", data.user.id)
+      .maybeSingle();
+    path = nextAgentOnboardingPath({ ...profile, email_verified: true });
+  }
+
+  return redirectWithAuthCookies(request, role, data.user.id, path);
 }

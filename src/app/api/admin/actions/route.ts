@@ -8,8 +8,14 @@ const schema = z.object({
     "reject_buyer_identity",
     "approve_buyer_financial",
     "reject_buyer_financial",
+    "approve_buyer",
+    "reject_buyer",
+    "delete_buyer",
     "approve_agent",
     "reject_agent",
+    "approve_agent_user",
+    "reject_agent_user",
+    "delete_agent",
     "suspend_buyer",
     "suspend_agent",
     "override_agent_availability",
@@ -25,6 +31,7 @@ const schema = z.object({
   serviceRadiusMiles: z.number().optional(),
   availableHours: z.string().optional(),
   note: z.string().optional(),
+  returnTo: z.string().optional(),
 });
 
 export async function POST(request: Request) {
@@ -64,6 +71,31 @@ export async function POST(request: Request) {
       .eq("id", payload.subjectId);
   }
 
+  if (payload.action === "approve_buyer" || payload.action === "reject_buyer") {
+    await supabase
+      .from("buyer_profiles")
+      .update({
+        identity_verification_status: payload.action === "approve_buyer" ? "approved" : "rejected",
+        financial_verification_status: payload.action === "approve_buyer" ? "approved" : "rejected",
+        buyer_onboarding_completed: payload.action === "approve_buyer",
+      })
+      .eq("id", payload.subjectId);
+  }
+
+  if (payload.action === "delete_buyer") {
+    const { data: buyer } = await supabase
+      .from("buyer_profiles")
+      .select("user_id")
+      .eq("id", payload.subjectId)
+      .maybeSingle();
+
+    if (buyer?.user_id) {
+      await supabase.auth.admin.deleteUser(buyer.user_id);
+    } else {
+      await supabase.from("buyer_profiles").delete().eq("id", payload.subjectId);
+    }
+  }
+
   if (payload.action === "approve_buyer_financial" || payload.action === "reject_buyer_financial") {
     await supabase
       .from("buyer_profiles")
@@ -100,6 +132,33 @@ export async function POST(request: Request) {
           ? "rejected"
           : "suspended";
     await supabase.from("agent_profiles").update({ approval_status: approvalStatus }).eq("id", payload.subjectId);
+  }
+
+  if (payload.action === "approve_agent_user" || payload.action === "reject_agent_user") {
+    await supabase
+      .from("agent_profiles")
+      .update({
+        license_verification_status: payload.action === "approve_agent_user" ? "approved" : "rejected",
+        brokerage_verification_status: payload.action === "approve_agent_user" ? "approved" : "rejected",
+        w9_verification_status: payload.action === "approve_agent_user" ? "approved" : "rejected",
+        approval_status: payload.action === "approve_agent_user" ? "approved" : "rejected",
+        agent_onboarding_completed: payload.action === "approve_agent_user",
+      })
+      .eq("id", payload.subjectId);
+  }
+
+  if (payload.action === "delete_agent") {
+    const { data: agent } = await supabase
+      .from("agent_profiles")
+      .select("user_id")
+      .eq("id", payload.subjectId)
+      .maybeSingle();
+
+    if (agent?.user_id) {
+      await supabase.auth.admin.deleteUser(agent.user_id);
+    } else {
+      await supabase.from("agent_profiles").delete().eq("id", payload.subjectId);
+    }
   }
 
   if (payload.action === "approve_agent") {
@@ -181,5 +240,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true });
   }
 
-  return NextResponse.redirect(new URL("/admin?action=saved", request.url), { status: 303 });
+  const returnTo =
+    payload.action === "delete_buyer" || payload.action === "delete_agent"
+      ? "/admin"
+      : payload.returnTo?.startsWith("/")
+        ? payload.returnTo
+        : "/admin";
+  return NextResponse.redirect(new URL(`${returnTo}${returnTo.includes("?") ? "&" : "?"}action=saved`, request.url), {
+    status: 303,
+  });
 }

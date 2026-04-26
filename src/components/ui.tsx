@@ -39,14 +39,22 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
                 >
                   <UserCircle size={20} />
                 </Link>
-                <Link
-                  href="#"
-                  aria-label="Settings"
-                  title="Settings"
-                  className="inline-flex size-10 items-center justify-center rounded-md border border-slate-300 text-slate-800 hover:bg-slate-100"
-                >
-                  <Settings size={19} />
-                </Link>
+                <details className="group relative">
+                  <summary
+                    aria-label="Open settings"
+                    title="Settings"
+                    className="inline-flex size-10 cursor-pointer list-none items-center justify-center rounded-md border border-slate-300 text-slate-800 hover:bg-slate-100 [&::-webkit-details-marker]:hidden"
+                  >
+                    <Settings size={19} />
+                  </summary>
+                  <div className="absolute right-0 z-20 mt-2 w-44 rounded-md border border-slate-200 bg-white p-2 shadow-lg">
+                    <form action="/api/auth/logout" method="post">
+                      <button className="flex min-h-10 w-full items-center rounded-md px-3 text-left text-sm font-semibold text-slate-800 hover:bg-slate-100">
+                        Log out
+                      </button>
+                    </form>
+                  </div>
+                </details>
               </>
             ) : (
               <>
@@ -122,12 +130,25 @@ export function ButtonLink({
 }
 
 export function StatusBadge({ status }: { status: string }) {
+  const normalizedStatus = status.toLowerCase();
+  const isPositive =
+    normalizedStatus.includes("approved") ||
+    normalizedStatus.includes("accepted") ||
+    normalizedStatus.includes("verified") ||
+    normalizedStatus.includes("ready") ||
+    normalizedStatus === "completed" ||
+    normalizedStatus === "released" ||
+    normalizedStatus === "available";
   const color =
-    status === "completed"
+    isPositive
       ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
-      : status === "agent_assigned" || status === "paid" || status === "held" || status === "released"
+      : status === "agent_assigned" || status === "paid" || status === "held"
         ? "bg-blue-50 text-blue-700 ring-blue-200"
-        : status === "cancelled" || status === "disputed" || status === "rejected"
+      : normalizedStatus.includes("rejected") ||
+          normalizedStatus.includes("denied") ||
+          normalizedStatus.includes("suspended") ||
+          status === "cancelled" ||
+          status === "disputed"
           ? "bg-red-50 text-red-700 ring-red-200"
           : "bg-amber-50 text-amber-700 ring-amber-200";
 

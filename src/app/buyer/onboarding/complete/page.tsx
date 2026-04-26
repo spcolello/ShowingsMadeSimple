@@ -1,5 +1,5 @@
 import { Clock } from "lucide-react";
-import { AppShell, ButtonLink, Card, Section, StatusBadge } from "@/components/ui";
+import { AppShell, Card, Section, StatusBadge } from "@/components/ui";
 import { BuyerOnboardingSteps } from "@/components/onboarding";
 
 export default function BuyerOnboardingCompletePage() {
@@ -19,9 +19,9 @@ export default function BuyerOnboardingCompletePage() {
             <StatusBadge status="identity_pending_review" />
             <StatusBadge status="financial_pending_review" />
           </div>
-          <div className="mt-6">
-            <ButtonLink href="/buyer/dashboard">Go to dashboard</ButtonLink>
-          </div>
+          <p className="mt-6 text-sm text-slate-600">
+            The dashboard unlocks after an admin approves your identity and financial verification.
+          </p>
         </Card>
       </Section>
     </AppShell>

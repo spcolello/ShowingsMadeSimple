@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { z } from "zod";
 import { uploadBuyerDocument } from "@/lib/buyer-onboarding";
 import { getSupabaseAdmin } from "@/lib/supabase";
@@ -10,8 +11,12 @@ const schema = z.object({
 export async function POST(request: Request) {
   const form = await request.formData();
   const payload = schema.parse(Object.fromEntries(form));
-  const ownerId = String(form.get("buyerId") ?? "pending-buyer");
   const supabase = getSupabaseAdmin();
+  const userId = (await cookies()).get("sms_user_id")?.value;
+  const { data: profile } = supabase && userId
+    ? await supabase.from("buyer_profiles").select("id").eq("user_id", userId).maybeSingle()
+    : { data: null };
+  const ownerId = profile?.id ?? String(form.get("buyerId") ?? "pending-buyer");
 
   if (payload.method === "soft_credit_check") {
     const consent = form.get("softCreditCheckConsent") === "true";
@@ -28,7 +33,6 @@ export async function POST(request: Request) {
         .update({
           financial_verification_status: "pending_review",
           soft_credit_check_consent: true,
-          buyer_onboarding_completed: true,
         })
         .eq("id", ownerId);
     }
@@ -47,9 +51,17 @@ export async function POST(request: Request) {
         .update({
           financial_verification_status: "pending_review",
           prequalification_letter_url: url,
-          buyer_onboarding_completed: true,
         })
         .eq("id", ownerId);
+
+      if (url && userId) {
+        await supabase.from("verification_documents").insert({
+          owner_user_id: userId,
+          document_type: "prequalification_letter",
+          storage_path: url,
+          status: "pending_review",
+        });
+      }
     }
   }
 

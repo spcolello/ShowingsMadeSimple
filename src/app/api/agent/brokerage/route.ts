@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { z } from "zod";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
@@ -17,8 +18,12 @@ export async function POST(request: Request) {
     return NextResponse.redirect(new URL("/agent/onboarding/brokerage?error=Invalid brokerage information", request.url), { status: 303 });
   }
 
-  const agentId = String(form.get("agentId") ?? "pending-agent");
   const supabase = getSupabaseAdmin();
+  const userId = (await cookies()).get("sms_user_id")?.value;
+  const { data: profile } = supabase && userId
+    ? await supabase.from("agent_profiles").select("id").eq("user_id", userId).maybeSingle()
+    : { data: null };
+  const agentId = profile?.id ?? String(form.get("agentId") ?? "pending-agent");
   if (supabase && agentId !== "pending-agent") {
     await supabase.from("agent_profiles").update({
       brokerage_name: payload.data.brokerageName,

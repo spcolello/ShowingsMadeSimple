@@ -57,14 +57,21 @@ export default async function LoginPage({
             <ButtonLink href="/agent/onboarding" variant="secondary">Create agent account</ButtonLink>
           </div>
           <div className="mt-6 border-t border-slate-200 pt-4">
-            <p className="text-sm font-semibold text-slate-700">Local development admin</p>
-            <form action="/api/auth/mock-login" method="post" className="mt-3 grid gap-3">
-              <input type="hidden" name="email" value="admin@gmail.com" />
-              <input type="hidden" name="password" value="admin" />
-              <button className="min-h-10 rounded-md border border-slate-300 px-3 text-sm font-semibold hover:bg-slate-100">
-                Login as mock admin
-              </button>
-            </form>
+            <p className="text-sm font-semibold text-slate-700">Demo/mock access for development</p>
+            <div className="mt-3 grid gap-2 sm:grid-cols-3">
+              {[
+                ["buyer", "Mock Buyer Dashboard"],
+                ["agent", "Mock Agent Dashboard"],
+                ["admin", "Admin"],
+              ].map(([role, label]) => (
+                <form key={role} action="/api/auth/mock-access" method="post">
+                  <input type="hidden" name="role" value={role} />
+                  <button className="min-h-10 w-full rounded-md border border-slate-300 px-3 text-sm font-semibold hover:bg-slate-100">
+                    {label}
+                  </button>
+                </form>
+              ))}
+            </div>
           </div>
         </Card>
       </Section>

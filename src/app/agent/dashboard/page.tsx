@@ -1,20 +1,283 @@
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { AppShell, ButtonLink, Card, Field, Section, StatusBadge } from "@/components/ui";
 import { demoAgents, demoBuyer, demoPayouts, demoShowings, formatMoney, matchingAgentsForZip } from "@/lib/demo-data";
 import { isAgentReady } from "@/lib/mvp-rules";
+import { nextAgentOnboardingPath } from "@/lib/onboarding-routing";
+import { getSupabaseAdmin } from "@/lib/supabase";
+import type { AgentProfile, BuyerProfile, Payout, ShowingRequest } from "@/lib/types";
 
-export default function AgentDashboardPage() {
-  const agent = demoAgents[0];
-  const agentReady = isAgentReady(agent);
-  const nearby = agentReady
-    ? demoShowings.filter(
-        (showing) =>
-          showing.status === "pending" &&
-          matchingAgentsForZip(showing.zipCode).some((match) => match.id === agent.id),
-      )
+type AgentRow = {
+  id: string;
+  name: string | null;
+  phone: string | null;
+  email_verified: boolean | null;
+  license_number: string | null;
+  license_state: string | null;
+  licensed_state: string | null;
+  license_expiration_date: string | null;
+  license_file_url: string | null;
+  license_verification_status: AgentProfile["licenseVerificationStatus"] | null;
+  brokerage_name: string | null;
+  brokerage_address: string | null;
+  broker_manager_name: string | null;
+  broker_manager_email: string | null;
+  broker_manager_phone: string | null;
+  brokerage_verification_status: AgentProfile["brokerageVerificationStatus"] | null;
+  w9_file_url: string | null;
+  w9_verification_status: AgentProfile["w9VerificationStatus"] | null;
+  payout_provider_account_id: string | null;
+  payout_setup_status: AgentProfile["payoutSetupStatus"] | null;
+  payouts_enabled: boolean | null;
+  agent_onboarding_completed: boolean | null;
+  approval_status: AgentProfile["approvalStatus"] | null;
+  service_areas: string[] | null;
+  available_days: string[] | null;
+  available_start_time: string | null;
+  available_end_time: string | null;
+  service_radius_miles: number | null;
+  available_hours: string | null;
+  required_notice_minutes: number | null;
+  is_available: boolean | null;
+  pending_earnings_cents: number | null;
+  total_earnings_cents: number | null;
+  completed_showings_count: number | null;
+  acceptance_rate: number | null;
+  average_response_seconds: number | null;
+  users?: { email?: string | null } | null;
+};
+
+type ShowingRow = {
+  id: string;
+  buyer_id: string;
+  property_address: string | null;
+  mls_number: string | null;
+  property_summary: string | null;
+  zip_code: string | null;
+  preferred_time: string;
+  safety_notes: string | null;
+  notes: string | null;
+  attendees: number;
+  status: string;
+  payment_status: string;
+  showing_fee_cents: number;
+  agent_payout_cents: number | null;
+  platform_fee_cents: number | null;
+  requested_at: string;
+  completed_at: string | null;
+  buyer_profiles?: {
+    identity_verification_status?: BuyerProfile["identityVerificationStatus"] | null;
+    financial_verification_status?: BuyerProfile["financialVerificationStatus"] | null;
+  } | null;
+};
+
+type AssignmentRow = {
+  showing_request_id: string;
+  agent_id: string;
+};
+
+type PayoutRow = {
+  id: string;
+  showing_request_id: string;
+  agent_id: string;
+  amount_cents: number;
+  status: Payout["status"];
+};
+
+function mapShowingStatus(status: string): ShowingRequest["status"] {
+  if (status === "assigned") return "agent_assigned";
+  if (status === "draft" || status === "payment_pending" || status === "paid" || status === "searching_for_agent") {
+    return "pending";
+  }
+  if (["agent_assigned", "agent_en_route", "completed", "cancelled", "refunded"].includes(status)) {
+    return status as ShowingRequest["status"];
+  }
+  return "pending";
+}
+
+function mapPaymentStatus(status: string): ShowingRequest["paymentStatus"] {
+  if (["unpaid", "paid", "held", "released", "refunded", "failed"].includes(status)) {
+    return status as ShowingRequest["paymentStatus"];
+  }
+  return "unpaid";
+}
+
+function mapAgent(row: AgentRow): AgentProfile {
+  return {
+    id: row.id,
+    name: row.name ?? "Agent",
+    email: row.users?.email ?? "",
+    phone: row.phone ?? "",
+    emailVerified: row.email_verified === true,
+    licenseNumber: row.license_number ?? "",
+    licenseState: row.license_state ?? row.licensed_state ?? "",
+    licenseExpirationDate: row.license_expiration_date ?? "",
+    licenseFileUrl: row.license_file_url ?? undefined,
+    licenseVerificationStatus: row.license_verification_status ?? "pending_review",
+    brokerageName: row.brokerage_name ?? "",
+    brokerageAddress: row.brokerage_address ?? "",
+    brokerManagerName: row.broker_manager_name ?? "",
+    brokerManagerEmail: row.broker_manager_email ?? "",
+    brokerManagerPhone: row.broker_manager_phone ?? "",
+    brokerageVerificationStatus: row.brokerage_verification_status ?? "pending_review",
+    w9FileUrl: row.w9_file_url ?? undefined,
+    w9VerificationStatus: row.w9_verification_status ?? "pending_review",
+    payoutProviderAccountId: row.payout_provider_account_id ?? undefined,
+    payoutSetupStatus: row.payout_setup_status ?? "incomplete",
+    payoutsEnabled: row.payouts_enabled === true,
+    agentOnboardingCompleted: row.agent_onboarding_completed === true,
+    approvalStatus: row.approval_status ?? "pending_review",
+    serviceAreas: row.service_areas ?? [],
+    availableDays: row.available_days ?? [],
+    availableStartTime: row.available_start_time?.slice(0, 5) ?? "",
+    availableEndTime: row.available_end_time?.slice(0, 5) ?? "",
+    serviceRadiusMiles: row.service_radius_miles ?? 10,
+    availableHours: row.available_hours ?? "",
+    requiredNoticeMinutes: row.required_notice_minutes ?? 60,
+    isAvailable: row.is_available === true,
+    pendingEarningsCents: row.pending_earnings_cents ?? 0,
+    totalEarningsCents: row.total_earnings_cents ?? 0,
+    completedShowingsCount: row.completed_showings_count ?? 0,
+    acceptanceRate: Number(row.acceptance_rate ?? 0),
+    averageResponseSeconds: row.average_response_seconds ?? 0,
+  };
+}
+
+function mapShowing(row: ShowingRow, assignment?: AssignmentRow): ShowingRequest {
+  return {
+    id: row.id,
+    buyerId: row.buyer_id,
+    propertyAddress: row.property_address ?? undefined,
+    mlsNumber: row.mls_number ?? undefined,
+    propertySummary: row.property_summary ?? "Buyer-entered property details",
+    zipCode: row.zip_code ?? "",
+    preferredTime: row.preferred_time,
+    safetyNotes: row.safety_notes ?? row.notes ?? "",
+    attendees: row.attendees,
+    status: mapShowingStatus(row.status),
+    paymentStatus: mapPaymentStatus(row.payment_status),
+    showingFeeCents: row.showing_fee_cents,
+    agentPayoutCents: row.agent_payout_cents ?? 6000,
+    platformFeeCents: row.platform_fee_cents ?? 1500,
+    assignedAgentId: assignment?.agent_id,
+    createdAt: row.requested_at,
+    completedAt: row.completed_at ?? undefined,
+  };
+}
+
+async function loadDashboardData() {
+  const cookieStore = await cookies();
+  const userId = cookieStore.get("sms_user_id")?.value;
+
+  if (!userId) {
+    redirect("/login");
+  }
+
+  if (userId.startsWith("mock-")) {
+    const agent = demoAgents[0];
+    const nearby = isAgentReady(agent)
+      ? demoShowings.filter(
+          (showing) =>
+            showing.status === "pending" &&
+            matchingAgentsForZip(showing.zipCode).some((match) => match.id === agent.id),
+        )
+      : [];
+    const assigned = demoShowings.filter((showing) => showing.assignedAgentId === agent.id);
+    return {
+      agent,
+      nearby,
+      assigned,
+      payouts: demoPayouts.filter((payout) => payout.agentId === agent.id),
+      buyerStatuses: new Map(demoShowings.map((showing) => [showing.id, `${demoBuyer.identityVerificationStatus}/${demoBuyer.financialVerificationStatus}`])),
+    };
+  }
+
+  const supabase = getSupabaseAdmin();
+  if (!supabase) {
+    redirect("/login?error=Supabase is not configured.");
+  }
+
+  const { data: agentRow } = await supabase
+    .from("agent_profiles")
+    .select("*, users(email)")
+    .eq("user_id", userId)
+    .maybeSingle<AgentRow>();
+
+  if (!agentRow) {
+    redirect("/agent/onboarding");
+  }
+
+  const nextPath = nextAgentOnboardingPath(agentRow);
+  if (nextPath !== "/agent/dashboard") {
+    redirect(nextPath);
+  }
+
+  const agent = mapAgent(agentRow);
+
+  const { data: rawShowingRows } = await supabase
+    .from("showing_requests")
+    .select("*, buyer_profiles(identity_verification_status, financial_verification_status)")
+    .order("requested_at", { ascending: false })
+    .returns<ShowingRow[]>();
+  const allShowingRows = rawShowingRows ?? [];
+
+  const showingIds = allShowingRows.map((showing) => showing.id);
+  const { data: rawAssignments } = showingIds.length
+    ? await supabase
+        .from("showing_assignments")
+        .select("showing_request_id, agent_id")
+        .in("showing_request_id", showingIds)
+        .returns<AssignmentRow[]>()
+    : { data: [] as AssignmentRow[] };
+  const assignments = rawAssignments ?? [];
+
+  const assigned = allShowingRows
+    .filter((showing) => assignments.some((assignment) => assignment.showing_request_id === showing.id && assignment.agent_id === agent.id))
+    .map((showing) => mapShowing(showing, assignments.find((assignment) => assignment.showing_request_id === showing.id)));
+
+  const nearby = isAgentReady(agent)
+    ? allShowingRows
+        .filter((showing) => {
+          const alreadyAssigned = assignments.some((assignment) => assignment.showing_request_id === showing.id);
+          const zipMatches = agent.serviceAreas.length === 0 || agent.serviceAreas.includes(showing.zip_code ?? "");
+          return !alreadyAssigned && showing.status === "pending" && showing.payment_status === "held" && zipMatches;
+        })
+        .map((showing) => mapShowing(showing))
     : [];
-  const assigned = demoShowings.filter((showing) => showing.assignedAgentId === agent.id);
+
+  const { data: rawPayoutRows } = await supabase
+    .from("payouts")
+    .select("id, showing_request_id, agent_id, amount_cents, status")
+    .eq("agent_id", agent.id)
+    .returns<PayoutRow[]>();
+  const payoutRows = rawPayoutRows ?? [];
+
+  const buyerStatuses = new Map(
+    allShowingRows.map((showing) => [
+      showing.id,
+      `${showing.buyer_profiles?.identity_verification_status ?? "unknown"}/${showing.buyer_profiles?.financial_verification_status ?? "unknown"}`,
+    ]),
+  );
+
+  return {
+    agent,
+    nearby,
+    assigned,
+    payouts: payoutRows.map((payout) => ({
+      id: payout.id,
+      showingRequestId: payout.showing_request_id,
+      agentId: payout.agent_id,
+      amountCents: payout.amount_cents,
+      status: payout.status,
+    })),
+    buyerStatuses,
+  };
+}
+
+export default async function AgentDashboardPage() {
+  const { agent, nearby, assigned, payouts, buyerStatuses } = await loadDashboardData();
+  const agentReady = isAgentReady(agent);
   const completed = assigned.filter((showing) => showing.status === "completed");
-  const payoutHistory = demoPayouts.filter((payout) => payout.agentId === agent.id);
   const missingSteps = [
     !agent.emailVerified ? "Verify email" : null,
     agent.licenseVerificationStatus !== "approved" ? "License approval" : null,
@@ -32,7 +295,7 @@ export default function AgentDashboardPage() {
             <p className="text-sm font-semibold text-teal-700">Agent dashboard</p>
             <h1 className="mt-1 text-3xl font-semibold">{agent.name}</h1>
             <p className="mt-2 text-slate-600">
-              License {agent.licenseNumber} in {agent.licenseState}. Availability:{" "}
+              License {agent.licenseNumber || "pending"} in {agent.licenseState || "pending"}. Availability:{" "}
               {agent.isAvailable ? "on" : "off"}. Radius: {agent.serviceRadiusMiles} miles.
             </p>
           </div>
@@ -61,7 +324,7 @@ export default function AgentDashboardPage() {
 
         <div className="mt-8 grid gap-4 md:grid-cols-4">
           <Card><p className="text-sm text-slate-500">Incoming requests</p><p className="mt-2 text-3xl font-semibold">{nearby.length}</p></Card>
-          <Card><p className="text-sm text-slate-500">Completed showings</p><p className="mt-2 text-3xl font-semibold">{agent.completedShowingsCount}</p></Card>
+          <Card><p className="text-sm text-slate-500">Completed showings</p><p className="mt-2 text-3xl font-semibold">{completed.length || agent.completedShowingsCount}</p></Card>
           <Card><p className="text-sm text-slate-500">Upcoming payouts</p><p className="mt-2 text-3xl font-semibold">{formatMoney(agent.pendingEarningsCents)}</p></Card>
           <Card><p className="text-sm text-slate-500">Total earnings</p><p className="mt-2 text-3xl font-semibold">{formatMoney(agent.totalEarningsCents)}</p></Card>
         </div>
@@ -73,8 +336,8 @@ export default function AgentDashboardPage() {
               <input type="hidden" name="agentId" value={agent.id} />
               <Field label="Available days" name="availableDays" placeholder={agent.availableDays.join(", ")} />
               <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Start time" name="availableStartTime" type="time" />
-                <Field label="End time" name="availableEndTime" type="time" />
+                <Field label="Start time" name="availableStartTime" type="time" required={false} />
+                <Field label="End time" name="availableEndTime" type="time" required={false} />
               </div>
               <Field label="Service radius in miles" name="serviceRadiusMiles" type="number" placeholder={String(agent.serviceRadiusMiles)} />
               <label className="flex gap-3 text-sm text-slate-700">
@@ -104,14 +367,14 @@ export default function AgentDashboardPage() {
                 <div key={showing.id} className="rounded-md border border-slate-200 p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="font-semibold">{showing.propertyAddress}</p>
+                      <p className="font-semibold">{showing.propertyAddress ?? showing.mlsNumber}</p>
                       <p className="mt-1 text-sm text-slate-600">{showing.propertySummary}</p>
                     </div>
                     <StatusBadge status={showing.status} />
                   </div>
                   <div className="mt-3 grid gap-1 text-sm text-slate-600">
                     <p>{new Date(showing.preferredTime).toLocaleString()} - {showing.attendees} attendees</p>
-                    <p>Buyer: {demoBuyer.identityVerificationStatus}/{demoBuyer.financialVerificationStatus}</p>
+                    <p>Buyer: {buyerStatuses.get(showing.id) ?? "unknown"}</p>
                     <p>Safety notes: {showing.safetyNotes}</p>
                     <p>Estimated payout: {formatMoney(showing.agentPayoutCents)}</p>
                     <p>Distance: not available until geocoding is configured</p>
@@ -142,7 +405,7 @@ export default function AgentDashboardPage() {
               {assigned.filter((showing) => showing.status !== "completed").map((showing) => (
                 <div key={showing.id} className="rounded-md border border-slate-200 p-4">
                   <div className="flex items-start justify-between gap-3">
-                    <p className="font-semibold">{showing.propertyAddress}</p>
+                    <p className="font-semibold">{showing.propertyAddress ?? showing.mlsNumber}</p>
                     <StatusBadge status={showing.status} />
                   </div>
                   <p className="mt-1 text-sm text-slate-600">{showing.safetyNotes}</p>
@@ -154,11 +417,11 @@ export default function AgentDashboardPage() {
           <Card>
             <h2 className="text-lg font-semibold">Earnings and payment history</h2>
             <div className="mt-4 grid gap-3">
-              {completed.length === 0 && payoutHistory.length === 0 && (
+              {completed.length === 0 && payouts.length === 0 && (
                 <p className="rounded-md border border-slate-200 p-4 text-sm text-slate-600">No completed payout history yet.</p>
               )}
-              {payoutHistory.map((payout) => {
-                const showing = demoShowings.find((item) => item.id === payout.showingRequestId);
+              {payouts.map((payout) => {
+                const showing = assigned.find((item) => item.id === payout.showingRequestId);
                 return (
                   <div key={payout.id} className="rounded-md border border-slate-200 p-4">
                     <div className="flex items-start justify-between gap-3">

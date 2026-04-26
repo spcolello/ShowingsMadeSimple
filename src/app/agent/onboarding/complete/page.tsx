@@ -1,6 +1,6 @@
 import { Clock } from "lucide-react";
 import { AgentOnboardingSteps } from "@/components/onboarding";
-import { AppShell, ButtonLink, Card, Section, StatusBadge } from "@/components/ui";
+import { AppShell, Card, Section, StatusBadge } from "@/components/ui";
 
 export default function AgentOnboardingCompletePage() {
   return (
@@ -20,9 +20,9 @@ export default function AgentOnboardingCompletePage() {
             <StatusBadge status="w9_pending_review" />
             <StatusBadge status="payout_pending" />
           </div>
-          <div className="mt-6">
-            <ButtonLink href="/agent/dashboard">Go to dashboard</ButtonLink>
-          </div>
+          <p className="mt-6 text-sm text-slate-600">
+            The dashboard unlocks after an admin approves your license, brokerage, W-9, and payout setup.
+          </p>
         </Card>
       </Section>
     </AppShell>
