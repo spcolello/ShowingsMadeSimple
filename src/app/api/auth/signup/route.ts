@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { env } from "@/lib/env";
 import { getSupabaseAdmin, getSupabasePublic } from "@/lib/supabase";
 
 const schema = z
@@ -35,12 +34,14 @@ export async function POST(request: Request) {
     });
   }
 
+  const origin = request.headers.get("origin") ?? new URL(request.url).origin;
+
   const { data, error } = await auth.auth.signUp({
     email: payload.data.email,
     password: payload.data.password,
     phone: payload.data.phone,
     options: {
-      emailRedirectTo: `${env.appUrl}/api/auth/callback`,
+      emailRedirectTo: `${origin}/api/auth/callback`,
       data: { full_name: payload.data.fullName, role: payload.data.role },
     },
   });

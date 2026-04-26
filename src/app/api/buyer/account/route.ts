@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { sendBuyerVerificationEmail } from "@/lib/buyer-onboarding";
-import { env } from "@/lib/env";
 import { getSupabaseAdmin, getSupabasePublic } from "@/lib/supabase";
 
 const schema = z
@@ -30,6 +29,7 @@ export async function POST(request: Request) {
 
   const supabase = getSupabaseAdmin();
   const auth = getSupabasePublic();
+  const origin = request.headers.get("origin") ?? new URL(request.url).origin;
 
   if (supabase && auth) {
     const { data, error } = await auth.auth.signUp({
@@ -37,7 +37,7 @@ export async function POST(request: Request) {
       password: payload.data.password,
       phone: payload.data.phone,
       options: {
-        emailRedirectTo: `${env.appUrl}/api/auth/callback`,
+        emailRedirectTo: `${origin}/api/auth/callback`,
         data: { full_name: payload.data.fullName, role: "buyer" },
       },
     });
@@ -73,7 +73,7 @@ export async function POST(request: Request) {
     }
   }
 
-  await sendBuyerVerificationEmail(payload.data.email);
+  await sendBuyerVerificationEmail(payload.data.email, `${origin}/api/auth/callback`);
 
   return NextResponse.redirect(
     new URL(`/buyer/onboarding/email?email=${encodeURIComponent(payload.data.email)}`, request.url),

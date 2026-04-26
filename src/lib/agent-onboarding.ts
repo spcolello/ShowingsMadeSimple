@@ -25,7 +25,7 @@ export async function uploadAgentDocument(ownerId: string, file: File | null, ty
   return `supabase://agent-verification/${path}`;
 }
 
-export async function sendAgentVerificationEmail(email: string) {
+export async function sendAgentVerificationEmail(email: string, redirectTo = `${env.appUrl}/api/auth/callback`) {
   const supabase = getSupabaseAdmin();
 
   if (!supabase) {
@@ -37,7 +37,7 @@ export async function sendAgentVerificationEmail(email: string) {
     type: "signup",
     email,
     options: {
-      emailRedirectTo: `${env.appUrl}/api/auth/callback`,
+      emailRedirectTo: redirectTo,
     },
   });
 

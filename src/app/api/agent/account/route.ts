@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { sendAgentVerificationEmail } from "@/lib/agent-onboarding";
-import { env } from "@/lib/env";
 import { getSupabaseAdmin, getSupabasePublic } from "@/lib/supabase";
 
 const schema = z
@@ -27,13 +26,14 @@ export async function POST(request: Request) {
 
   const supabase = getSupabaseAdmin();
   const auth = getSupabasePublic();
+  const origin = request.headers.get("origin") ?? new URL(request.url).origin;
   if (supabase && auth) {
     const { data, error } = await auth.auth.signUp({
       email: payload.data.email,
       password: payload.data.password,
       phone: payload.data.phone,
       options: {
-        emailRedirectTo: `${env.appUrl}/api/auth/callback`,
+        emailRedirectTo: `${origin}/api/auth/callback`,
         data: { full_name: payload.data.fullName, role: "agent" },
       },
     });
@@ -69,6 +69,6 @@ export async function POST(request: Request) {
     }
   }
 
-  await sendAgentVerificationEmail(payload.data.email);
+  await sendAgentVerificationEmail(payload.data.email, `${origin}/api/auth/callback`);
   return NextResponse.redirect(new URL(`/agent/onboarding/email?email=${encodeURIComponent(payload.data.email)}`, request.url), { status: 303 });
 }

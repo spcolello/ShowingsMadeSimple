@@ -25,7 +25,7 @@ export async function uploadBuyerDocument(ownerId: string, file: File | null, ty
   return `supabase://buyer-verification/${path}`;
 }
 
-export async function sendBuyerVerificationEmail(email: string) {
+export async function sendBuyerVerificationEmail(email: string, redirectTo = `${env.appUrl}/api/auth/callback`) {
   const supabase = getSupabaseAdmin();
 
   if (!supabase) {
@@ -37,7 +37,7 @@ export async function sendBuyerVerificationEmail(email: string) {
     type: "signup",
     email,
     options: {
-      emailRedirectTo: `${env.appUrl}/api/auth/callback`,
+      emailRedirectTo: redirectTo,
     },
   });
 

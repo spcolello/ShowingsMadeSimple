@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { env } from "@/lib/env";
 import { getSupabasePublic } from "@/lib/supabase";
 
 const schema = z.object({ email: z.string().email() });
@@ -23,7 +22,7 @@ export async function POST(request: Request) {
   const { error } = await supabase.auth.resend({
     type: "signup",
     email: payload.data.email,
-    options: { emailRedirectTo: `${env.appUrl}/api/auth/callback` },
+    options: { emailRedirectTo: `${request.headers.get("origin") ?? new URL(request.url).origin}/api/auth/callback` },
   });
 
   if (error) {
