@@ -23,13 +23,13 @@ export default function Home() {
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-sm font-semibold text-slate-500">Live request</p>
-              <h2 className="mt-1 text-xl font-semibold">88 Brickell Plaza</h2>
+              <h2 className="mt-1 text-xl font-semibold">123 House Street</h2>
             </div>
             <StatusBadge status="pending" />
           </div>
           <div className="grid gap-3 text-sm text-slate-700">
             <p className="flex items-center gap-2">
-              <MapPin size={18} /> Miami, FL 33131
+              <MapPin size={18} /> Amsterdam, NY 12010
             </p>
             <p className="flex items-center gap-2">
               <CreditCard size={18} /> Buyer payment captured
@@ -42,7 +42,7 @@ export default function Home() {
             </p>
           </div>
           <ButtonLink href="/agent/accept/demo-showing-1">
-            Preview accept flow <ArrowRight size={16} />
+            Preview accept flow (this does not work rn) <ArrowRight size={16} />
           </ButtonLink>
         </Card>
       </Section>
