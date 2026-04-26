@@ -14,7 +14,8 @@ export function middleware(request: NextRequest) {
     pathname.startsWith("/buyer/onboarding") ||
     pathname.startsWith("/buyer/login") ||
     pathname.startsWith("/agent/onboarding") ||
-    pathname.startsWith("/agent/login");
+    pathname.startsWith("/agent/login") ||
+    pathname.startsWith("/signup");
 
   if (pathname.startsWith("/admin") && demoRole !== "admin") {
     return NextResponse.redirect(new URL("/login?error=Admin access required.", request.url));

@@ -1,7 +1,26 @@
 import Link from "next/link";
 import { clsx } from "clsx";
+import { cookies } from "next/headers";
+import { Settings, UserCircle } from "lucide-react";
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+function dashboardPathForRole(role?: string) {
+  if (role === "buyer") {
+    return "/buyer/dashboard";
+  }
+  if (role === "agent") {
+    return "/agent/dashboard";
+  }
+  if (role === "admin") {
+    return "/admin";
+  }
+  return "/login";
+}
+
+export async function AppShell({ children }: { children: React.ReactNode }) {
+  const cookieStore = await cookies();
+  const role = cookieStore.get("sms_demo_role")?.value;
+  const isLoggedIn = Boolean(role);
+
   return (
     <div className="min-h-screen">
       <header className="border-b border-slate-200 bg-white">
@@ -10,18 +29,41 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             Showings Made Simple
           </Link>
           <div className="flex items-center gap-3">
-            <Link
-              href="/buyer/onboarding"
-              className="hidden min-h-10 items-center rounded-md bg-teal-700 px-3 text-sm font-semibold text-white hover:bg-teal-800 sm:inline-flex"
-            >
-              Sign up / Get started
-            </Link>
-            <Link
-              href="/login"
-              className="inline-flex min-h-10 items-center rounded-md border border-slate-300 px-3 text-sm font-semibold text-slate-800 hover:bg-slate-100"
-            >
-              Login
-            </Link>
+            {isLoggedIn ? (
+              <>
+                <Link
+                  href={dashboardPathForRole(role)}
+                  aria-label="Open profile dashboard"
+                  title="Profile"
+                  className="inline-flex size-10 items-center justify-center rounded-md border border-slate-300 text-slate-800 hover:bg-slate-100"
+                >
+                  <UserCircle size={20} />
+                </Link>
+                <Link
+                  href="#"
+                  aria-label="Settings"
+                  title="Settings"
+                  className="inline-flex size-10 items-center justify-center rounded-md border border-slate-300 text-slate-800 hover:bg-slate-100"
+                >
+                  <Settings size={19} />
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link
+                  href="/signup"
+                  className="hidden min-h-10 items-center rounded-md bg-teal-700 px-3 text-sm font-semibold text-white hover:bg-teal-800 sm:inline-flex"
+                >
+                  Sign up / Get started
+                </Link>
+                <Link
+                  href="/login"
+                  className="inline-flex min-h-10 items-center rounded-md border border-slate-300 px-3 text-sm font-semibold text-slate-800 hover:bg-slate-100"
+                >
+                  Login
+                </Link>
+              </>
+            )}
           </div>
         </nav>
       </header>

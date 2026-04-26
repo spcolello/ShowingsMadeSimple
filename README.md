@@ -28,7 +28,21 @@ See `.env.example` for all keys. Keep `SMS_MOCK_MODE=true` while developing so T
 
 ## Supabase
 
-Run the SQL files in order:
+To make real logins save and make the admin dashboard pull live data:
+
+1. Create a Supabase project.
+2. In Supabase Auth, enable email/password signups and email confirmations.
+3. Add these redirect URLs in Supabase Auth settings:
+   - `http://localhost:3000/api/auth/callback`
+   - `https://YOUR_VERCEL_DOMAIN/api/auth/callback`
+4. Create private Storage buckets:
+   - `buyer-verification`
+   - `agent-verification`
+5. Add your Supabase env vars to `.env.local` and Vercel:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - `SUPABASE_SERVICE_ROLE_KEY`
+6. Run the SQL files in order:
 
 ```text
 supabase/migrations/001_initial_schema.sql
@@ -39,6 +53,15 @@ supabase/migrations/005_admin_access.sql
 supabase/migrations/006_real_auth_profiles.sql
 supabase/seed/seed.sql
 ```
+
+7. Create an admin user in Supabase Auth, then add a matching row in `public.users`:
+
+```sql
+insert into public.users (id, role, email, full_name, email_verified)
+values ('AUTH_USER_UUID_HERE', 'admin', 'admin@example.com', 'Admin', true);
+```
+
+Use the auth user's UUID from Supabase Auth. Do not use the local mock admin in production.
 
 The schema includes:
 
@@ -75,6 +98,7 @@ RLS policies scope buyer, agent, and admin access. Server-side workflow routes u
 - `/agent/onboarding/tax`
 - `/agent/onboarding/payout`
 - `/agent/onboarding/complete`
+- `/signup`
 - `/login`
 - `/buyer/dashboard`
 - `/buyer/profile`

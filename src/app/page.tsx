@@ -6,8 +6,7 @@ export default function Home() {
     <AppShell>
       <Section className="grid gap-8 py-10 md:grid-cols-[1.15fr_0.85fr] md:items-center md:py-16">
         <div>
-          <StatusBadge status="MVP demo ready" />
-          <h1 className="mt-5 max-w-3xl text-4xl font-semibold tracking-tight text-slate-950 sm:text-6xl">
+          <h1 className="max-w-3xl text-4xl font-semibold tracking-tight text-slate-950 sm:text-6xl">
             On-demand property showings for verified buyers.
           </h1>
           <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-600">
@@ -15,10 +14,8 @@ export default function Home() {
             The first available agent to accept is assigned.
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-            <ButtonLink href="/buyer/onboarding">Verify as buyer</ButtonLink>
-            <ButtonLink href="/agent/onboarding" variant="secondary">
-              Join as agent
-            </ButtonLink>
+            <ButtonLink href="/signup">Sign up / Get started</ButtonLink>
+            <ButtonLink href="/login" variant="secondary">Login</ButtonLink>
           </div>
         </div>
 
