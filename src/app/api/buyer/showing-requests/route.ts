@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { createShowingRequest } from "@/lib/workflow";
 
 const schema = z.object({
   propertyId: z.string().uuid(),
@@ -23,12 +24,7 @@ export async function POST(request: Request) {
 
   if (userId.startsWith("mock-")) {
     return NextResponse.json({
-      showingRequest: {
-        id: crypto.randomUUID(),
-        propertyId: payload.data.propertyId,
-        requestedTime: payload.data.requestedTime,
-        status: "pending",
-      },
+      checkoutUrl: "/api/stripe/checkout?showingId=local-new-showing",
     });
   }
 
@@ -41,7 +37,7 @@ export async function POST(request: Request) {
     supabase.from("buyer_profiles").select("id").eq("user_id", userId).maybeSingle(),
     supabase
       .from("properties")
-      .select("id, address, zip")
+      .select("id, address, city, state, zip, price, beds, baths, mls_number")
       .eq("id", payload.data.propertyId)
       .eq("status", "active")
       .maybeSingle(),
@@ -60,33 +56,46 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Enter a valid requested time." }, { status: 400 });
   }
 
-  const { data, error } = await supabase
-    .from("showing_requests")
-    .insert({
-      buyer_id: buyer.id,
-      property_id: property.id,
-      property_address: property.address,
-      zip_code: property.zip,
-      preferred_time: requestedTime.toISOString(),
-      requested_time: requestedTime.toISOString(),
-      status: "pending",
-      payment_status: "unpaid",
+  try {
+    const showing = await createShowingRequest({
+      buyerId: buyer.id,
+      propertyAddress: property.address,
+      mlsNumber: property.mls_number ?? undefined,
+      propertySummary: [
+        property.mls_number ? `MLS ${property.mls_number}` : null,
+        property.price ? `$${Number(property.price).toLocaleString()}` : null,
+        property.beds ? `${property.beds} beds` : null,
+        property.baths ? `${property.baths} baths` : null,
+      ]
+        .filter(Boolean)
+        .join(" - "),
+      zipCode: property.zip,
+      preferredTime: requestedTime.toISOString(),
       attendees: 1,
-      serious_interest_confirmed: true,
-    })
-    .select("id, property_id, requested_time, status")
-    .single();
+      seriousInterest: true,
+    });
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    await supabase
+      .from("showing_requests")
+      .update({
+        property_id: property.id,
+        requested_time: requestedTime.toISOString(),
+      })
+      .eq("id", showing.id);
+
+    return NextResponse.json({
+      checkoutUrl: `/api/stripe/checkout?showingId=${showing.id}`,
+      showingRequest: {
+        id: showing.id,
+        propertyId: property.id,
+        requestedTime: requestedTime.toISOString(),
+        status: showing.status,
+      },
+    });
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Showing request could not be created." },
+      { status: 400 },
+    );
   }
-
-  return NextResponse.json({
-    showingRequest: {
-      id: data.id,
-      propertyId: data.property_id,
-      requestedTime: data.requested_time,
-      status: data.status,
-    },
-  });
 }

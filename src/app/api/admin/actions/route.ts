@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { getStripe } from "@/lib/stripe";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
 const schema = z.object({
@@ -23,10 +24,13 @@ const schema = z.object({
     "reject_document",
     "reassign_showing",
     "refund_payment",
+    "set_payment_status",
+    "cancel_showing",
     "mark_showing_complete",
   ]),
   subjectId: z.string().min(1),
   agentId: z.string().optional(),
+  paymentStatus: z.enum(["unpaid", "paid", "held", "released", "refunded", "failed"]).optional(),
   isAvailable: z.boolean().optional(),
   serviceRadiusMiles: z.number().optional(),
   availableHours: z.string().optional(),
@@ -208,6 +212,13 @@ export async function POST(request: Request) {
     await supabase.from("showing_requests").update({ status: "agent_assigned" }).eq("id", payload.subjectId);
   }
 
+  if (payload.action === "cancel_showing") {
+    await supabase
+      .from("showing_requests")
+      .update({ status: "cancelled", cancelled_at: new Date().toISOString() })
+      .eq("id", payload.subjectId);
+  }
+
   if (payload.action === "approve_document" || payload.action === "reject_document") {
     await supabase
       .from("verification_documents")
@@ -219,8 +230,36 @@ export async function POST(request: Request) {
   }
 
   if (payload.action === "refund_payment") {
+    const { data: payment } = await supabase
+      .from("payments")
+      .select("stripe_payment_intent_id, status")
+      .eq("showing_request_id", payload.subjectId)
+      .maybeSingle();
+    const stripe = getStripe();
+
+    if (stripe && payment?.stripe_payment_intent_id && payment.status !== "refunded") {
+      await stripe.refunds.create({
+        payment_intent: payment.stripe_payment_intent_id,
+        metadata: { showingId: payload.subjectId, adminNote: payload.note ?? "" },
+      });
+    }
+
     await supabase.from("payments").update({ status: "refunded" }).eq("showing_request_id", payload.subjectId);
     await supabase.from("showing_requests").update({ status: "refunded", payment_status: "refunded" }).eq("id", payload.subjectId);
+  }
+
+  if (payload.action === "set_payment_status" && payload.paymentStatus) {
+    await supabase
+      .from("payments")
+      .update({ status: payload.paymentStatus, updated_at: new Date().toISOString() })
+      .eq("showing_request_id", payload.subjectId);
+
+    const showingUpdate =
+      payload.paymentStatus === "refunded"
+        ? { payment_status: payload.paymentStatus, status: "refunded" }
+        : { payment_status: payload.paymentStatus };
+
+    await supabase.from("showing_requests").update(showingUpdate).eq("id", payload.subjectId);
   }
 
   if (payload.action === "mark_showing_complete" && payload.agentId) {

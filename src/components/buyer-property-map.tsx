@@ -201,8 +201,13 @@ export function BuyerPropertyMap({ mapboxToken }: { mapboxToken?: string }) {
         throw new Error(body.error ?? "Showing request could not be sent.");
       }
 
+      if (body.checkoutUrl) {
+        window.location.href = body.checkoutUrl;
+        return;
+      }
+
       setIsModalOpen(false);
-      setSuccess("Showing request sent. Nearby agents will be alerted.");
+      setSuccess("Showing request created. Continue to checkout to alert agents.");
     } catch (submitError) {
       setRequestError(submitError instanceof Error ? submitError.message : "Showing request could not be sent.");
     } finally {
@@ -401,7 +406,7 @@ export function BuyerPropertyMap({ mapboxToken }: { mapboxToken?: string }) {
                   disabled={isSubmitting}
                   className="min-h-11 rounded-md bg-teal-700 px-4 text-sm font-semibold text-white hover:bg-teal-800 disabled:cursor-not-allowed disabled:bg-slate-400"
                 >
-                  {isSubmitting ? "Sending..." : "Submit request"}
+                  {isSubmitting ? "Starting checkout..." : "Continue to payment"}
                 </button>
               </div>
             </form>

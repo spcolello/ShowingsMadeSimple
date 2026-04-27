@@ -125,6 +125,10 @@ export async function notifyMatchingAgents(showingId: string) {
     throw showingError;
   }
 
+  if (showing.payment_status !== "held") {
+    return { matchedAgents: 0, notifications: [], blocked: "Payment must be held before broadcast." };
+  }
+
   const { data: agents, error } = await supabase
     .from("agent_profiles")
     .select("*")
@@ -187,7 +191,15 @@ export async function acceptShowingRequest(showingId: string, agentId: string) {
     throw error;
   }
 
-  return data as { accepted: boolean; message: string };
+  const accepted = data as { accepted: boolean; message: string };
+  if (accepted.accepted) {
+    await supabase
+      .from("showing_requests")
+      .update({ assigned_agent_id: agentId, status: "agent_assigned" })
+      .eq("id", showingId);
+  }
+
+  return accepted;
 }
 
 export async function completeShowing(showingId: string, agentId: string) {

@@ -5,6 +5,7 @@ export async function POST(request: Request) {
   const form = await request.formData();
   const showingId = String(form.get("showingId"));
   const agentId = String(form.get("agentId"));
+  const returnTo = String(form.get("returnTo") ?? "/agent/dashboard?declined=true");
   const supabase = getSupabaseAdmin();
 
   if (supabase) {
@@ -15,5 +16,5 @@ export async function POST(request: Request) {
     });
   }
 
-  return NextResponse.redirect(new URL("/agent/dashboard?declined=true", request.url), { status: 303 });
+  return NextResponse.redirect(new URL(returnTo.startsWith("/") ? returnTo : "/agent/dashboard?declined=true", request.url), { status: 303 });
 }

@@ -306,7 +306,7 @@ async function loadDashboardData() {
         .filter((showing) => {
           const alreadyAssigned = assignments.some((assignment) => assignment.showing_request_id === showing.id);
           const zipMatches = agent.serviceAreas.length === 0 || agent.serviceAreas.includes(showing.zip_code ?? "");
-          const requestIsAvailable = showing.status === "pending" && ["held", "paid", "unpaid"].includes(showing.payment_status);
+          const requestIsAvailable = showing.status === "pending" && showing.payment_status === "held";
           return !alreadyAssigned && requestIsAvailable && zipMatches;
         })
         .map((showing) => mapShowing(showing))
@@ -409,6 +409,24 @@ export default async function AgentDashboardPage() {
           <Card><p className="text-sm text-slate-500">Upcoming payouts</p><p className="mt-2 text-3xl font-semibold">{formatMoney(agent.pendingEarningsCents)}</p></Card>
           <Card><p className="text-sm text-slate-500">Total earnings</p><p className="mt-2 text-3xl font-semibold">{formatMoney(agent.totalEarningsCents)}</p></Card>
         </div>
+
+        <Card className="mt-8">
+          <h2 className="text-lg font-semibold">Showing workflow</h2>
+          <div className="mt-4 grid gap-3 md:grid-cols-5">
+            {[
+              ["1", "Receive request"],
+              ["2", "Accept or decline"],
+              ["3", "Conduct showing"],
+              ["4", "Mark complete"],
+              ["5", "Receive payout"],
+            ].map(([step, label]) => (
+              <div key={step} className="rounded-md border border-slate-200 p-3">
+                <p className="text-xs font-semibold text-teal-700">Step {step}</p>
+                <p className="mt-1 text-sm font-semibold">{label}</p>
+              </div>
+            ))}
+          </div>
+        </Card>
 
         <div className="mt-8 grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
           <Card>
@@ -517,6 +535,7 @@ export default async function AgentDashboardPage() {
                     <p className="font-semibold">{showing.propertyAddress ?? showing.mlsNumber}</p>
                     <StatusBadge status={showing.status} />
                   </div>
+                  <p className="mt-1 text-sm font-semibold text-slate-700">Conduct this showing at the requested time, then mark it complete.</p>
                   <p className="mt-1 text-sm text-slate-600">{showing.safetyNotes}</p>
                   <p className="mt-2 text-sm text-slate-600">{propertyDetailsById.get(showing.id) ?? showing.propertySummary}</p>
                   <form action="/api/showings/complete" method="post" className="mt-4">

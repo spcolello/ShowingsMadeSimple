@@ -30,6 +30,17 @@ type AdminShowing = {
   status: string;
   paymentStatus: string;
   showingFeeCents: number;
+  agentPayoutCents: number;
+};
+
+type AdminPayment = {
+  id: string;
+  showingRequestId: string;
+  amountCents: number;
+  status: string;
+  stripeCheckoutSessionId?: string | null;
+  stripePaymentIntentId?: string | null;
+  createdAt: string;
 };
 
 type AdminSafetyFlag = {
@@ -60,6 +71,26 @@ function DeleteAccountForm({
   );
 }
 
+function AdminPostForm({
+  action,
+  subjectId,
+  children,
+  className,
+}: {
+  action: string;
+  subjectId: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <form action="/api/admin/actions" method="post" className={className}>
+      <input type="hidden" name="action" value={action} />
+      <input type="hidden" name="subjectId" value={subjectId} />
+      {children}
+    </form>
+  );
+}
+
 async function loadAdminData() {
   const supabase = getSupabaseAdmin();
 
@@ -85,7 +116,15 @@ async function loadAdminData() {
       })),
       showings: demoShowings,
       documentCount: 5,
-      payments: demoPayouts,
+      payments: demoPayouts.map((payout) => ({
+        id: payout.id,
+        showingRequestId: payout.showingRequestId,
+        amountCents: payout.amountCents,
+        status: payout.status,
+        stripeCheckoutSessionId: null,
+        stripePaymentIntentId: null,
+        createdAt: new Date().toISOString(),
+      })),
       safetyFlags: demoSafetyFlags,
     };
   }
@@ -126,9 +165,18 @@ async function loadAdminData() {
       status: showing.status,
       paymentStatus: showing.payment_status,
       showingFeeCents: showing.showing_fee_cents ?? 0,
+      agentPayoutCents: showing.agent_payout_cents ?? 0,
     })) satisfies AdminShowing[],
     documentCount: documentsResult.data?.length ?? 0,
-    payments: paymentsResult.data ?? [],
+    payments: (paymentsResult.data ?? []).map((payment) => ({
+      id: payment.id,
+      showingRequestId: payment.showing_request_id,
+      amountCents: payment.amount_cents,
+      status: payment.status,
+      stripeCheckoutSessionId: payment.stripe_checkout_session_id,
+      stripePaymentIntentId: payment.stripe_payment_intent_id,
+      createdAt: payment.created_at,
+    })) satisfies AdminPayment[],
     safetyFlags: (safetyResult.data ?? []).map((flag) => ({
       id: flag.id,
       severity: flag.severity,
@@ -140,6 +188,7 @@ async function loadAdminData() {
 
 export default async function AdminPage() {
   const { buyers, agents, showings, documentCount, payments, safetyFlags } = await loadAdminData();
+  const paymentByShowingId = new Map(payments.map((payment) => [payment.showingRequestId, payment]));
   const overview = [
     {
       id: "buyers",
@@ -285,11 +334,39 @@ export default async function AdminPage() {
                 <div key={showing.id} className="rounded-md border border-slate-200 p-4">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <p className="font-medium">{showing.propertyAddress ?? showing.mlsNumber}</p>
-                    <StatusBadge status={showing.status} />
+                    <div className="flex flex-wrap gap-2">
+                      <StatusBadge status={showing.status} />
+                      <StatusBadge status={showing.paymentStatus} />
+                    </div>
                   </div>
                   <p className="mt-1 text-sm text-slate-600">
-                    {showing.paymentStatus} - {formatMoney(showing.showingFeeCents)}
+                    Buyer fee {formatMoney(showing.showingFeeCents)} - Agent payout {formatMoney(showing.agentPayoutCents)}
                   </p>
+                  <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                    <AdminPostForm action="reassign_showing" subjectId={showing.id} className="flex gap-2">
+                      <select
+                        name="agentId"
+                        required
+                        className="min-h-10 min-w-0 flex-1 rounded-md border border-slate-300 bg-white px-2 text-sm"
+                      >
+                        <option value="">Reassign agent</option>
+                        {agents.map((agent) => (
+                          <option key={agent.id} value={agent.id}>
+                            {agent.name}
+                          </option>
+                        ))}
+                      </select>
+                      <button className="min-h-10 rounded-md border border-slate-300 px-3 text-sm font-semibold hover:bg-slate-100">
+                        Save
+                      </button>
+                    </AdminPostForm>
+                    <AdminPostForm action="cancel_showing" subjectId={showing.id}>
+                      <input type="hidden" name="note" value="Admin cancelled showing" />
+                      <button className="min-h-10 w-full rounded-md border border-red-300 px-3 text-sm font-semibold text-red-700 hover:bg-red-50">
+                        Cancel showing
+                      </button>
+                    </AdminPostForm>
+                  </div>
                 </div>
               ))}
             </div>
@@ -300,9 +377,43 @@ export default async function AdminPage() {
             <div className="mt-4 grid gap-3">
               {showings.length === 0 && <p className="text-sm text-slate-600">No payments yet.</p>}
               {showings.slice(0, 8).map((showing) => (
-                <div key={showing.id} className="flex items-center justify-between rounded-md border border-slate-200 p-3 text-sm">
-                  <span>{showing.propertyAddress ?? showing.id}</span>
-                  <span>{formatMoney(showing.showingFeeCents)} - {showing.paymentStatus}</span>
+                <div key={showing.id} className="rounded-md border border-slate-200 p-4 text-sm">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="font-medium">{showing.propertyAddress ?? showing.id}</p>
+                      <p className="mt-1 text-slate-600">
+                        {formatMoney(paymentByShowingId.get(showing.id)?.amountCents ?? showing.showingFeeCents)}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        {paymentByShowingId.get(showing.id)?.stripePaymentIntentId ? "Stripe payment available" : "Internal/mock payment record"}
+                      </p>
+                    </div>
+                    <StatusBadge status={paymentByShowingId.get(showing.id)?.status ?? showing.paymentStatus} />
+                  </div>
+                  <div className="mt-4 grid gap-2 sm:grid-cols-[1fr_auto]">
+                    <AdminPostForm action="set_payment_status" subjectId={showing.id} className="flex gap-2">
+                      <select
+                        name="paymentStatus"
+                        defaultValue={paymentByShowingId.get(showing.id)?.status ?? showing.paymentStatus}
+                        className="min-h-10 min-w-0 flex-1 rounded-md border border-slate-300 bg-white px-2 text-sm"
+                      >
+                        {["unpaid", "paid", "held", "released", "refunded", "failed"].map((status) => (
+                          <option key={status} value={status}>
+                            {status.replaceAll("_", " ")}
+                          </option>
+                        ))}
+                      </select>
+                      <button className="min-h-10 rounded-md border border-slate-300 px-3 text-sm font-semibold hover:bg-slate-100">
+                        Update
+                      </button>
+                    </AdminPostForm>
+                    <AdminPostForm action="refund_payment" subjectId={showing.id}>
+                      <input type="hidden" name="note" value="Admin issued refund" />
+                      <button className="min-h-10 w-full rounded-md border border-red-300 px-3 text-sm font-semibold text-red-700 hover:bg-red-50">
+                        Refund
+                      </button>
+                    </AdminPostForm>
+                  </div>
                 </div>
               ))}
             </div>

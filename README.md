@@ -26,6 +26,8 @@ The app works without credentials in demo mode. Add Supabase, Stripe, and Twilio
 
 See `.env.example` for all keys. Keep `SMS_MOCK_MODE=true` while developing so Twilio messages are logged instead of sent.
 
+For Stripe, set `STRIPE_SECRET_KEY` first. `STRIPE_SHOWING_PRICE_ID` is optional now; if it is blank, Checkout uses the request fee stored on the showing row. Set `STRIPE_WEBHOOK_SECRET` after running a Stripe webhook listener or adding the production webhook endpoint in Stripe.
+
 ## Supabase
 
 To make real logins save and make the admin dashboard pull live data:
@@ -125,7 +127,8 @@ RLS policies scope buyer, agent, and admin access. Server-side workflow routes u
 - `POST /api/agent/availability` saves available days, hours, service radius, and availability toggle
 - `POST /api/showings/decline` records an agent decline
 - `GET /api/stripe/checkout` starts Stripe Checkout or mock checkout
-- `POST /api/stripe/webhook` marks payment complete and starts agent matching
+- `GET /api/stripe/checkout/success` verifies successful Checkout sessions and marks buyer funds held
+- `POST /api/stripe/webhook` marks payment held and starts agent matching
 - `POST /api/sms/notify-agents` sends SMS alerts to matching agents
 - `POST /api/showings/accept` accepts a showing first-come-first-serve
 - `POST /api/showings/complete` marks assigned showings complete and tracks pending earnings

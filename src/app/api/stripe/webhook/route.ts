@@ -1,9 +1,8 @@
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { env } from "@/lib/env";
+import { holdShowingPayment, stripeId } from "@/lib/payments";
 import { getStripe } from "@/lib/stripe";
-import { getSupabaseAdmin } from "@/lib/supabase";
-import { notifyMatchingAgents } from "@/lib/workflow";
 
 export async function POST(request: Request) {
   const stripe = getStripe();
@@ -14,24 +13,23 @@ export async function POST(request: Request) {
     return NextResponse.json({ received: true, mocked: true });
   }
 
-  const event = stripe.webhooks.constructEvent(body, signature, env.stripeWebhookSecret);
+  let event;
+  try {
+    event = stripe.webhooks.constructEvent(body, signature, env.stripeWebhookSecret);
+  } catch {
+    return NextResponse.json({ error: "Invalid Stripe webhook signature." }, { status: 400 });
+  }
 
   if (event.type === "checkout.session.completed") {
     const session = event.data.object;
     const showingId = session.metadata?.showingId;
     if (showingId) {
-      const supabase = getSupabaseAdmin();
-      await supabase?.from("payments").insert({
-        showing_request_id: showingId,
-        stripe_checkout_session_id: session.id,
-        amount_cents: session.amount_total,
-        status: "paid",
+      await holdShowingPayment({
+        showingId,
+        checkoutSessionId: session.id,
+        paymentIntentId: stripeId(session.payment_intent),
+        amountCents: session.amount_total,
       });
-      await supabase
-        ?.from("showing_requests")
-        .update({ status: "paid", payment_status: "paid", payment_completed_at: new Date().toISOString() })
-        .eq("id", showingId);
-      await notifyMatchingAgents(showingId);
     }
   }
 

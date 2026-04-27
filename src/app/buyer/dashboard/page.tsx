@@ -3,8 +3,9 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { BuyerPropertyMap } from "@/components/buyer-property-map";
 import { BuyerPropertySearch } from "@/components/buyer-property-search";
+import { BuyerShowingStatusList } from "@/components/buyer-showing-status-list";
 import { AppShell, ButtonLink, Card, Section, StatusBadge } from "@/components/ui";
-import { demoAgents, demoBuyer, demoShowings, formatMoney } from "@/lib/demo-data";
+import { demoAgents, demoBuyer, demoShowings } from "@/lib/demo-data";
 import { isBuyerReady } from "@/lib/mvp-rules";
 import { nextBuyerOnboardingPath } from "@/lib/onboarding-routing";
 import { getSupabaseAdmin } from "@/lib/supabase";
@@ -391,41 +392,20 @@ export default async function BuyerDashboardPage({
           </div>
         </Card>
 
-        <div className="mt-8 overflow-hidden rounded-lg border border-slate-200 bg-white">
-          <div className="grid grid-cols-1 gap-0 divide-y divide-slate-200">
-            {showings.length === 0 && (
-              <div className="p-4 text-sm text-slate-600">
-                No showing requests yet. Approved buyers can request a showing from the property search tab.
-              </div>
-            )}
-            {showings.map((showing) => {
-              const agentName = showing.assignedAgentId ? agentsById.get(showing.assignedAgentId) : null;
-              return (
-                <Link
-                  key={showing.id}
-                  href={`/buyer/showings/${showing.id}`}
-                  className="grid gap-3 p-4 hover:bg-slate-50 md:grid-cols-[1.3fr_0.7fr_0.7fr_auto] md:items-center"
-                >
-                  <div>
-                    <p className="font-semibold">{showing.propertyAddress ?? showing.mlsNumber}</p>
-                    <p className="text-sm text-slate-600">
-                      {showing.mlsNumber ? `MLS ${showing.mlsNumber} - ` : ""}
-                      {showing.zipCode}
-                    </p>
-                  </div>
-                  <p className="text-sm text-slate-700">{new Date(showing.preferredTime).toLocaleString()}</p>
-                  <p className="text-sm text-slate-700">{agentName ? `Agent: ${agentName}` : "Awaiting agent"}</p>
-                  <div className="flex items-center gap-3">
-                    <StatusBadge status={showing.status} />
-                    <span className="text-sm text-slate-500">
-                      {formatMoney(showing.showingFeeCents)} - {showing.paymentStatus}
-                    </span>
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
-        </div>
+        <BuyerShowingStatusList
+          initialShowings={showings.map((showing) => ({
+            id: showing.id,
+            propertyAddress: showing.propertyAddress,
+            mlsNumber: showing.mlsNumber,
+            zipCode: showing.zipCode,
+            preferredTime: showing.preferredTime,
+            status: showing.status,
+            paymentStatus: showing.paymentStatus,
+            showingFeeCents: showing.showingFeeCents,
+            assignedAgentId: showing.assignedAgentId,
+            agentName: showing.assignedAgentId ? agentsById.get(showing.assignedAgentId) ?? null : null,
+          }))}
+        />
       </Section>
     </AppShell>
   );

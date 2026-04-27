@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AppShell, Card, Section, StatusBadge } from "@/components/ui";
 import { demoAgents, demoDocuments } from "@/lib/demo-data";
+import { createDocumentViewUrl } from "@/lib/document-access";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
 type AgentProfile = {
@@ -40,6 +41,7 @@ type DocumentRow = {
   status: string | null;
   uploaded_at: string;
   internal_notes?: string | null;
+  view_url?: string | null;
 };
 
 function AdminDecisionForm({
@@ -93,6 +95,43 @@ function DeleteAgentForm({ subjectId }: { subjectId: string }) {
   );
 }
 
+function DocumentReviewForm({
+  action,
+  subjectId,
+  returnTo,
+  label,
+  variant = "primary",
+}: {
+  action: "approve_document" | "reject_document";
+  subjectId: string;
+  returnTo: string;
+  label: string;
+  variant?: "primary" | "danger";
+}) {
+  return (
+    <form action="/api/admin/actions" method="post" className="grid gap-2">
+      <input type="hidden" name="action" value={action} />
+      <input type="hidden" name="subjectId" value={subjectId} />
+      <input type="hidden" name="returnTo" value={returnTo} />
+      <textarea
+        name="note"
+        rows={2}
+        placeholder="Document note"
+        className="rounded-md border border-slate-300 px-3 py-2 text-sm"
+      />
+      <button
+        className={
+          variant === "danger"
+            ? "min-h-10 rounded-md border border-red-300 px-3 text-sm font-semibold text-red-700 hover:bg-red-50"
+            : "min-h-10 rounded-md border border-emerald-300 px-3 text-sm font-semibold text-emerald-700 hover:bg-emerald-50"
+        }
+      >
+        {label}
+      </button>
+    </form>
+  );
+}
+
 async function loadAgent(id: string) {
   const supabase = getSupabaseAdmin();
 
@@ -135,6 +174,8 @@ async function loadAgent(id: string) {
           storage_path: "Demo document",
           status: document.status,
           uploaded_at: document.uploadedAt,
+          internal_notes: null,
+          view_url: null,
         })),
     };
   }
@@ -158,7 +199,15 @@ async function loadAgent(id: string) {
         .returns<DocumentRow[]>()
     : { data: [] as DocumentRow[] };
 
-  return { agent, documents: documents ?? [] };
+  return {
+    agent,
+    documents: await Promise.all(
+      (documents ?? []).map(async (document) => ({
+        ...document,
+        view_url: await createDocumentViewUrl(document.storage_path),
+      })),
+    ),
+  };
 }
 
 export default async function AdminAgentReviewPage({
@@ -232,8 +281,29 @@ export default async function AdminAgentReviewPage({
                         <p className="font-medium capitalize">{document.document_type.replaceAll("_", " ")}</p>
                         <p className="mt-1 text-sm text-slate-600">{document.storage_path}</p>
                         <p className="mt-1 text-xs text-slate-500">{new Date(document.uploaded_at).toLocaleString()}</p>
+                        {document.internal_notes && (
+                          <p className="mt-2 text-sm text-slate-600">Note: {document.internal_notes}</p>
+                        )}
                       </div>
                       <StatusBadge status={document.status ?? "pending_review"} />
+                    </div>
+                    <div className="mt-4 grid gap-3 sm:grid-cols-[auto_1fr_1fr]">
+                      {document.view_url ? (
+                        <a
+                          href={document.view_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex min-h-10 items-center justify-center rounded-md border border-slate-300 px-3 text-sm font-semibold text-slate-800 hover:bg-slate-100"
+                        >
+                          View document
+                        </a>
+                      ) : (
+                        <span className="inline-flex min-h-10 items-center rounded-md border border-slate-200 px-3 text-sm text-slate-500">
+                          Preview unavailable
+                        </span>
+                      )}
+                      <DocumentReviewForm action="approve_document" subjectId={document.id} returnTo={`/admin/agents/${agent.id}`} label="Approve document" />
+                      <DocumentReviewForm action="reject_document" subjectId={document.id} returnTo={`/admin/agents/${agent.id}`} label="Reject document" variant="danger" />
                     </div>
                   </div>
                 ))}
