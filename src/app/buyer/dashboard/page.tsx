@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { BuyerPropertyMap } from "@/components/buyer-property-map";
+import { BuyerPropertySearch } from "@/components/buyer-property-search";
 import { AppShell, ButtonLink, Card, Section, StatusBadge } from "@/components/ui";
 import { demoAgents, demoBuyer, demoShowings, formatMoney } from "@/lib/demo-data";
 import { isBuyerReady } from "@/lib/mvp-rules";
@@ -189,7 +191,97 @@ async function loadDashboardData() {
   };
 }
 
-export default async function BuyerDashboardPage() {
+function BuyerDashboardTabs({ activeTab }: { activeTab: "overview" | "properties" | "request" }) {
+  const tabs = [
+    ["overview", "Overview"],
+    ["properties", "Property search"],
+    ["request", "Request by MLS/address"],
+  ] as const;
+
+  return (
+    <div className="mb-6 flex flex-wrap gap-2 border-b border-slate-200 pb-3">
+      {tabs.map(([tab, label]) => (
+        <Link
+          key={tab}
+          href={tab === "overview" ? "/buyer/dashboard" : `/buyer/dashboard?tab=${tab}`}
+          className={`rounded-md px-3 py-2 text-sm font-semibold ${
+            activeTab === tab
+              ? "bg-teal-700 text-white"
+              : "border border-slate-300 bg-white text-slate-800 hover:bg-slate-100"
+          }`}
+        >
+          {label}
+        </Link>
+      ))}
+    </div>
+  );
+}
+
+function ManualShowingRequestPanel({
+  error,
+  payment,
+}: {
+  error?: string;
+  payment?: string;
+}) {
+  return (
+    <Section className="max-w-3xl pt-0">
+      {error && (
+        <p className="mb-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          {error}
+        </p>
+      )}
+      {payment === "cancelled" && (
+        <p className="mb-4 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+          Payment was cancelled. Your showing request is not ready for agent matching until payment is completed.
+        </p>
+      )}
+      <Card>
+        <h1 className="text-2xl font-semibold">Search by MLS or address</h1>
+        <p className="mt-2 text-sm text-slate-600">
+          Search seeded properties by MLS number or address, then request a showing from the matching property.
+        </p>
+        <div className="mt-6">
+          <BuyerPropertySearch />
+        </div>
+      </Card>
+    </Section>
+  );
+}
+
+export default async function BuyerDashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string; error?: string; payment?: string }>;
+}) {
+  const params = await searchParams;
+  const activeTab =
+    params.tab === "properties" ? "properties" : params.tab === "request" ? "request" : "overview";
+
+  if (activeTab === "properties") {
+    await loadDashboardData();
+    return (
+      <AppShell>
+        <Section className="pb-4">
+          <BuyerDashboardTabs activeTab="properties" />
+        </Section>
+        <BuyerPropertyMap mapboxToken={process.env.NEXT_PUBLIC_MAPBOX_TOKEN} />
+      </AppShell>
+    );
+  }
+
+  if (activeTab === "request") {
+    await loadDashboardData();
+    return (
+      <AppShell>
+        <Section className="pb-4">
+          <BuyerDashboardTabs activeTab="request" />
+        </Section>
+        <ManualShowingRequestPanel error={params.error} payment={params.payment} />
+      </AppShell>
+    );
+  }
+
   const { buyer, showings, agentsById } = await loadDashboardData();
   const buyerReady = isBuyerReady(buyer);
   const missingSteps = [
@@ -202,6 +294,7 @@ export default async function BuyerDashboardPage() {
   return (
     <AppShell>
       <Section>
+        <BuyerDashboardTabs activeTab="overview" />
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
           <div>
             <p className="text-sm font-semibold text-teal-700">Buyer dashboard</p>
@@ -211,7 +304,10 @@ export default async function BuyerDashboardPage() {
             </p>
           </div>
           {buyerReady ? (
-            <ButtonLink href="/buyer/showings/new">Request showing</ButtonLink>
+            <div className="flex flex-wrap gap-2">
+              <ButtonLink href="/buyer/dashboard?tab=properties">Search properties</ButtonLink>
+              <ButtonLink href="/buyer/dashboard?tab=request" variant="secondary">Request by MLS/address</ButtonLink>
+            </div>
           ) : (
             <ButtonLink href="/buyer/onboarding" variant="secondary">
               Finish verification
@@ -278,11 +374,28 @@ export default async function BuyerDashboardPage() {
           </Card>
         </div>
 
+        <Card className="mt-8">
+          <h2 className="text-lg font-semibold">Showing status tracking</h2>
+          <div className="mt-4 grid gap-3 md:grid-cols-4">
+            {[
+              ["pending", "Request received; waiting for an agent."],
+              ["agent_assigned", "An agent accepted the showing."],
+              ["agent_en_route", "The agent is on the way."],
+              ["completed", "Showing has been completed."],
+            ].map(([status, description]) => (
+              <div key={status} className="rounded-md border border-slate-200 p-3">
+                <StatusBadge status={status} />
+                <p className="mt-2 text-sm text-slate-600">{description}</p>
+              </div>
+            ))}
+          </div>
+        </Card>
+
         <div className="mt-8 overflow-hidden rounded-lg border border-slate-200 bg-white">
           <div className="grid grid-cols-1 gap-0 divide-y divide-slate-200">
             {showings.length === 0 && (
               <div className="p-4 text-sm text-slate-600">
-                No showing requests yet. Approved buyers can request a showing from this dashboard.
+                No showing requests yet. Approved buyers can request a showing from the property search tab.
               </div>
             )}
             {showings.map((showing) => {

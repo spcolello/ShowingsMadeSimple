@@ -164,12 +164,14 @@ export function Field({
   name,
   type = "text",
   placeholder,
+  defaultValue,
   required = true,
 }: {
   label: string;
   name: string;
   type?: string;
   placeholder?: string;
+  defaultValue?: string | number;
   required?: boolean;
 }) {
   return (
@@ -179,6 +181,7 @@ export function Field({
         name={name}
         type={type}
         placeholder={placeholder}
+        defaultValue={defaultValue}
         required={required}
         className="min-h-11 rounded-md border border-slate-300 bg-white px-3 text-slate-950 shadow-sm"
       />

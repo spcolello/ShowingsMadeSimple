@@ -67,6 +67,7 @@ export type AgentProfile = {
   agentOnboardingCompleted: boolean;
   approvalStatus: AgentApprovalStatus;
   serviceAreas: string[];
+  serviceLocation?: string;
   availableDays: string[];
   availableStartTime: string;
   availableEndTime: string;

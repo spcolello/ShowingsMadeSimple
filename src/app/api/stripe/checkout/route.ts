@@ -6,10 +6,11 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const showingId = url.searchParams.get("showingId") ?? "local-new-showing";
   const stripe = getStripe();
+  const origin = request.headers.get("origin") ?? url.origin;
 
   if (!stripe || !env.stripePriceId) {
     return NextResponse.redirect(
-      `${env.appUrl}/buyer/showings/demo-showing-1?mockCheckout=paid&showingId=${showingId}`,
+      `${origin}/buyer/showings/demo-showing-1?mockCheckout=paid&showingId=${showingId}`,
       { status: 303 },
     );
   }
@@ -17,8 +18,8 @@ export async function GET(request: Request) {
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
     line_items: [{ price: env.stripePriceId, quantity: 1 }],
-    success_url: `${env.appUrl}/buyer/showings/${showingId}?payment=success`,
-    cancel_url: `${env.appUrl}/buyer/showings/new?payment=cancelled`,
+    success_url: `${origin}/buyer/showings/${showingId}?payment=success`,
+    cancel_url: `${origin}/buyer/dashboard?tab=request&payment=cancelled`,
     metadata: { showingId },
   });
 

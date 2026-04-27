@@ -36,6 +36,10 @@ export async function createShowingRequest(input: ShowingInput) {
     };
   }
 
+  if (!input.buyerId) {
+    throw new Error("Buyer profile is required before requesting showings.");
+  }
+
   const { data, error } = await supabase
     .from("buyer_profiles")
     .select("email_verified, identity_verification_status, financial_verification_status, buyer_onboarding_completed, suspended")
@@ -67,6 +71,7 @@ export async function createShowingRequest(input: ShowingInput) {
       preferred_time: input.preferredTime,
       safety_notes: input.safetyNotes,
       attendees: input.attendees,
+      serious_interest_confirmed: input.seriousInterest,
       status: "pending",
       payment_status: "unpaid",
       showing_fee_cents: 7500,
@@ -199,6 +204,19 @@ export async function completeShowing(showingId: string, agentId: string) {
   if (error) {
     throw error;
   }
+
+  const { data: showing } = await supabase
+    .from("showing_requests")
+    .select("agent_payout_cents")
+    .eq("id", showingId)
+    .maybeSingle();
+
+  await supabase.from("payouts").upsert({
+    showing_request_id: showingId,
+    agent_id: agentId,
+    amount_cents: showing?.agent_payout_cents ?? 6000,
+    status: "pending",
+  }, { onConflict: "showing_request_id,agent_id" });
 
   return { completed: true };
 }

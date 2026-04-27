@@ -32,6 +32,7 @@ type AgentRow = {
   agent_onboarding_completed: boolean | null;
   approval_status: AgentProfile["approvalStatus"] | null;
   service_areas: string[] | null;
+  service_location: string | null;
   available_days: string[] | null;
   available_start_time: string | null;
   available_end_time: string | null;
@@ -69,6 +70,17 @@ type ShowingRow = {
     identity_verification_status?: BuyerProfile["identityVerificationStatus"] | null;
     financial_verification_status?: BuyerProfile["financialVerificationStatus"] | null;
   } | null;
+  properties?: {
+    address?: string | null;
+    city?: string | null;
+    state?: string | null;
+    zip?: string | null;
+    price?: number | string | null;
+    beds?: number | null;
+    baths?: number | string | null;
+    mls_number?: string | null;
+    image_url?: string | null;
+  } | null;
 };
 
 type AssignmentRow = {
@@ -82,6 +94,21 @@ type PayoutRow = {
   agent_id: string;
   amount_cents: number;
   status: Payout["status"];
+  created_at?: string | null;
+  released_at?: string | null;
+};
+
+type AvailabilityRow = {
+  day_of_week: number;
+  start_time: string;
+  end_time: string;
+};
+
+type PaymentRow = {
+  showing_request_id: string;
+  amount_cents: number;
+  status: string;
+  created_at: string;
 };
 
 function mapShowingStatus(status: string): ShowingRequest["status"] {
@@ -128,6 +155,7 @@ function mapAgent(row: AgentRow): AgentProfile {
     agentOnboardingCompleted: row.agent_onboarding_completed === true,
     approvalStatus: row.approval_status ?? "pending_review",
     serviceAreas: row.service_areas ?? [],
+    serviceLocation: row.service_location ?? "",
     availableDays: row.available_days ?? [],
     availableStartTime: row.available_start_time?.slice(0, 5) ?? "",
     availableEndTime: row.available_end_time?.slice(0, 5) ?? "",
@@ -141,6 +169,21 @@ function mapAgent(row: AgentRow): AgentProfile {
     acceptanceRate: Number(row.acceptance_rate ?? 0),
     averageResponseSeconds: row.average_response_seconds ?? 0,
   };
+}
+
+function propertyDetails(showing: ShowingRow) {
+  if (!showing.properties) {
+    return showing.property_summary ?? "Buyer-entered property details";
+  }
+
+  const pieces = [
+    showing.properties.mls_number ? `MLS ${showing.properties.mls_number}` : null,
+    showing.properties.price ? formatMoney(Number(showing.properties.price) * 100) : null,
+    showing.properties.beds ? `${showing.properties.beds} beds` : null,
+    showing.properties.baths ? `${showing.properties.baths} baths` : null,
+  ].filter(Boolean);
+
+  return pieces.join(" - ") || "Buyer-selected property";
 }
 
 function mapShowing(row: ShowingRow, assignment?: AssignmentRow): ShowingRequest {
@@ -188,7 +231,13 @@ async function loadDashboardData() {
       nearby,
       assigned,
       payouts: demoPayouts.filter((payout) => payout.agentId === agent.id),
+      payments: [],
       buyerStatuses: new Map(demoShowings.map((showing) => [showing.id, `${demoBuyer.identityVerificationStatus}/${demoBuyer.financialVerificationStatus}`])),
+      propertyDetailsById: new Map(demoShowings.map((showing) => [showing.id, showing.propertySummary])),
+      availabilityByDay: new Map(agent.availableDays.map((day) => [day, {
+        startTime: agent.availableStartTime || "09:00",
+        endTime: agent.availableEndTime || "17:00",
+      }])),
     };
   }
 
@@ -213,10 +262,27 @@ async function loadDashboardData() {
   }
 
   const agent = mapAgent(agentRow);
+  const dayLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+  const { data: rawAvailabilityRows } = await supabase
+    .from("agent_availability")
+    .select("day_of_week, start_time, end_time")
+    .eq("agent_id", agent.id)
+    .order("day_of_week", { ascending: true })
+    .returns<AvailabilityRow[]>();
+  const availabilityByDay = new Map(
+    (rawAvailabilityRows ?? []).map((row) => [
+      dayLabels[row.day_of_week] ?? "Mon",
+      {
+        startTime: row.start_time?.slice(0, 5) || "09:00",
+        endTime: row.end_time?.slice(0, 5) || "17:00",
+      },
+    ]),
+  );
 
   const { data: rawShowingRows } = await supabase
     .from("showing_requests")
-    .select("*, buyer_profiles(identity_verification_status, financial_verification_status)")
+    .select("*, buyer_profiles(identity_verification_status, financial_verification_status), properties(address, city, state, zip, price, beds, baths, mls_number, image_url)")
     .order("requested_at", { ascending: false })
     .returns<ShowingRow[]>();
   const allShowingRows = rawShowingRows ?? [];
@@ -240,17 +306,28 @@ async function loadDashboardData() {
         .filter((showing) => {
           const alreadyAssigned = assignments.some((assignment) => assignment.showing_request_id === showing.id);
           const zipMatches = agent.serviceAreas.length === 0 || agent.serviceAreas.includes(showing.zip_code ?? "");
-          return !alreadyAssigned && showing.status === "pending" && showing.payment_status === "held" && zipMatches;
+          const requestIsAvailable = showing.status === "pending" && ["held", "paid", "unpaid"].includes(showing.payment_status);
+          return !alreadyAssigned && requestIsAvailable && zipMatches;
         })
         .map((showing) => mapShowing(showing))
     : [];
 
   const { data: rawPayoutRows } = await supabase
     .from("payouts")
-    .select("id, showing_request_id, agent_id, amount_cents, status")
+    .select("id, showing_request_id, agent_id, amount_cents, status, created_at, released_at")
     .eq("agent_id", agent.id)
     .returns<PayoutRow[]>();
   const payoutRows = rawPayoutRows ?? [];
+
+  const assignedShowingIds = assigned.map((showing) => showing.id);
+  const { data: rawPayments } = assignedShowingIds.length
+    ? await supabase
+        .from("payments")
+        .select("showing_request_id, amount_cents, status, created_at")
+        .in("showing_request_id", assignedShowingIds)
+        .returns<PaymentRow[]>()
+    : { data: [] as PaymentRow[] };
+  const payments = rawPayments ?? [];
 
   const buyerStatuses = new Map(
     allShowingRows.map((showing) => [
@@ -258,6 +335,7 @@ async function loadDashboardData() {
       `${showing.buyer_profiles?.identity_verification_status ?? "unknown"}/${showing.buyer_profiles?.financial_verification_status ?? "unknown"}`,
     ]),
   );
+  const propertyDetailsById = new Map(allShowingRows.map((showing) => [showing.id, propertyDetails(showing)]));
 
   return {
     agent,
@@ -270,12 +348,15 @@ async function loadDashboardData() {
       amountCents: payout.amount_cents,
       status: payout.status,
     })),
+    payments,
     buyerStatuses,
+    propertyDetailsById,
+    availabilityByDay,
   };
 }
 
 export default async function AgentDashboardPage() {
-  const { agent, nearby, assigned, payouts, buyerStatuses } = await loadDashboardData();
+  const { agent, nearby, assigned, payouts, payments, buyerStatuses, propertyDetailsById, availabilityByDay } = await loadDashboardData();
   const agentReady = isAgentReady(agent);
   const completed = assigned.filter((showing) => showing.status === "completed");
   const missingSteps = [
@@ -334,12 +415,40 @@ export default async function AgentDashboardPage() {
             <h2 className="text-lg font-semibold">Availability settings</h2>
             <form action="/api/agent/availability" method="post" className="mt-4 grid gap-4">
               <input type="hidden" name="agentId" value={agent.id} />
-              <Field label="Available days" name="availableDays" placeholder={agent.availableDays.join(", ")} />
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Start time" name="availableStartTime" type="time" required={false} />
-                <Field label="End time" name="availableEndTime" type="time" required={false} />
-              </div>
-              <Field label="Service radius in miles" name="serviceRadiusMiles" type="number" placeholder={String(agent.serviceRadiusMiles)} />
+              <fieldset className="grid gap-2">
+                <legend className="text-sm font-medium text-slate-700">Available days and times</legend>
+                <div className="grid gap-2">
+                  {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => (
+                    <div key={day} className="grid gap-2 rounded-md border border-slate-200 p-3 sm:grid-cols-[90px_1fr_1fr] sm:items-center">
+                      <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+                        <input
+                          type="checkbox"
+                          name="availableDays"
+                          value={day}
+                          defaultChecked={agent.availableDays.includes(day) || availabilityByDay.has(day)}
+                        />
+                        {day}
+                      </label>
+                      <Field
+                        label="Start"
+                        name={`startTime_${day}`}
+                        type="time"
+                        required={false}
+                        defaultValue={availabilityByDay.get(day)?.startTime ?? agent.availableStartTime ?? "09:00"}
+                      />
+                      <Field
+                        label="End"
+                        name={`endTime_${day}`}
+                        type="time"
+                        required={false}
+                        defaultValue={availabilityByDay.get(day)?.endTime ?? agent.availableEndTime ?? "17:00"}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </fieldset>
+              <Field label="Service location" name="serviceLocation" placeholder="Miami, FL or 33131" defaultValue={agent.serviceLocation ?? ""} />
+              <Field label="Service radius in miles" name="serviceRadiusMiles" type="number" defaultValue={agent.serviceRadiusMiles} />
               <label className="flex gap-3 text-sm text-slate-700">
                 <input type="checkbox" name="isAvailable" value="true" defaultChecked={agent.isAvailable} className="mt-1" />
                 Available to receive showing requests
@@ -368,16 +477,16 @@ export default async function AgentDashboardPage() {
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="font-semibold">{showing.propertyAddress ?? showing.mlsNumber}</p>
-                      <p className="mt-1 text-sm text-slate-600">{showing.propertySummary}</p>
+                      <p className="mt-1 text-sm text-slate-600">{propertyDetailsById.get(showing.id) ?? showing.propertySummary}</p>
                     </div>
                     <StatusBadge status={showing.status} />
                   </div>
                   <div className="mt-3 grid gap-1 text-sm text-slate-600">
                     <p>{new Date(showing.preferredTime).toLocaleString()} - {showing.attendees} attendees</p>
-                    <p>Buyer: {buyerStatuses.get(showing.id) ?? "unknown"}</p>
+                    <p>Buyer verification: {buyerStatuses.get(showing.id) ?? "unknown"}</p>
                     <p>Safety notes: {showing.safetyNotes}</p>
                     <p>Estimated payout: {formatMoney(showing.agentPayoutCents)}</p>
-                    <p>Distance: not available until geocoding is configured</p>
+                    <p>Service radius: {agent.serviceRadiusMiles} miles from {agent.serviceLocation || "saved location"}</p>
                   </div>
                   <div className="mt-4 flex flex-wrap gap-2">
                     <ButtonLink href={`/agent/accept/${showing.id}?agent=${agent.id}`}>Accept request</ButtonLink>
@@ -409,6 +518,14 @@ export default async function AgentDashboardPage() {
                     <StatusBadge status={showing.status} />
                   </div>
                   <p className="mt-1 text-sm text-slate-600">{showing.safetyNotes}</p>
+                  <p className="mt-2 text-sm text-slate-600">{propertyDetailsById.get(showing.id) ?? showing.propertySummary}</p>
+                  <form action="/api/showings/complete" method="post" className="mt-4">
+                    <input type="hidden" name="showingId" value={showing.id} />
+                    <input type="hidden" name="agentId" value={agent.id} />
+                    <button className="min-h-10 rounded-md border border-slate-300 px-3 text-sm font-semibold hover:bg-slate-100">
+                      Mark complete
+                    </button>
+                  </form>
                 </div>
               ))}
             </div>
@@ -430,6 +547,20 @@ export default async function AgentDashboardPage() {
                         <p className="mt-1 text-sm text-slate-600">{formatMoney(payout.amountCents)}</p>
                       </div>
                       <StatusBadge status={payout.status} />
+                    </div>
+                  </div>
+                );
+              })}
+              {payments.map((payment) => {
+                const showing = assigned.find((item) => item.id === payment.showing_request_id);
+                return (
+                  <div key={`${payment.showing_request_id}-${payment.created_at}`} className="rounded-md border border-slate-200 p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="font-semibold">{showing?.propertyAddress ?? payment.showing_request_id}</p>
+                        <p className="mt-1 text-sm text-slate-600">{formatMoney(payment.amount_cents)} buyer payment</p>
+                      </div>
+                      <StatusBadge status={payment.status} />
                     </div>
                   </div>
                 );
