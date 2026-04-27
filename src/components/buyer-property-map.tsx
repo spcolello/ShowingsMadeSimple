@@ -19,7 +19,6 @@ export function BuyerPropertyMap({ mapboxToken }: { mapboxToken?: string }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [mapStatus, setMapStatus] = useState(mapboxToken ? "Loading map..." : "Mapbox token missing.");
-  const [showFallbackMap, setShowFallbackMap] = useState(false);
   const [filters, setFilters] = useState({
     maxPrice: "",
     minBeds: "",
@@ -79,28 +78,6 @@ export function BuyerPropertyMap({ mapboxToken }: { mapboxToken?: string }) {
     });
   }, [filters, properties]);
 
-  const fallbackBounds = useMemo(() => {
-    const source = visibleProperties.length > 0 ? visibleProperties : properties;
-    const lats = source.map((property) => property.lat);
-    const lngs = source.map((property) => property.lng);
-
-    return {
-      minLat: Math.min(...lats),
-      maxLat: Math.max(...lats),
-      minLng: Math.min(...lngs),
-      maxLng: Math.max(...lngs),
-    };
-  }, [properties, visibleProperties]);
-
-  function fallbackPosition(property: Property) {
-    const lngRange = fallbackBounds.maxLng - fallbackBounds.minLng || 1;
-    const latRange = fallbackBounds.maxLat - fallbackBounds.minLat || 1;
-    return {
-      left: `${8 + ((property.lng - fallbackBounds.minLng) / lngRange) * 84}%`,
-      top: `${8 + (1 - (property.lat - fallbackBounds.minLat) / latRange) * 84}%`,
-    };
-  }
-
   useEffect(() => {
     if (!mapboxToken || !mapContainerRef.current || mapRef.current || properties.length === 0) {
       return;
@@ -132,7 +109,6 @@ export function BuyerPropertyMap({ mapboxToken }: { mapboxToken?: string }) {
         });
         mapRef.current.on("error", (event: mapboxgl.ErrorEvent) => {
           setMapStatus(event.error?.message ?? "Mapbox returned an error. Check token restrictions.");
-          setShowFallbackMap(true);
         });
       } catch (mapError) {
         const message = mapError instanceof Error ? mapError.message : "Map could not be loaded.";
@@ -313,37 +289,7 @@ export function BuyerPropertyMap({ mapboxToken }: { mapboxToken?: string }) {
               {mapStatus}
             </div>
           )}
-          {mapboxToken && (
-            <button
-              type="button"
-              onClick={() => setShowFallbackMap((current) => !current)}
-              className="absolute right-4 top-4 z-10 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm hover:bg-slate-100"
-            >
-              {showFallbackMap ? "Show Mapbox map" : "Map blank? Show basic map"}
-            </button>
-          )}
           <div ref={mapContainerRef} className="absolute inset-0 bg-slate-200" />
-          {showFallbackMap && (
-            <div className="absolute inset-0 z-[1] bg-[linear-gradient(90deg,rgba(15,118,110,0.08)_1px,transparent_1px),linear-gradient(rgba(15,118,110,0.08)_1px,transparent_1px)] bg-[size:48px_48px]">
-              <div className="absolute inset-0 bg-gradient-to-br from-sky-50 via-slate-50 to-emerald-50" />
-              <div className="absolute left-4 top-4 rounded-md border border-slate-200 bg-white/90 px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm">
-                Basic map fallback
-              </div>
-              {visibleProperties.map((property) => (
-                <button
-                  key={property.id}
-                  type="button"
-                  style={fallbackPosition(property)}
-                  onClick={() => setSelectedProperty(property)}
-                  className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white px-2 py-1 text-xs font-bold text-white shadow-lg ${
-                    selectedProperty?.id === property.id ? "bg-teal-800 ring-4 ring-teal-200" : "bg-teal-700"
-                  }`}
-                >
-                  ${Math.round(property.price / 1000)}k
-                </button>
-              ))}
-            </div>
-          )}
 
           {selectedProperty && (
             <div className="absolute inset-x-4 top-20 z-10 mx-auto max-w-sm overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl lg:left-auto lg:right-4 lg:top-16 lg:mx-0 lg:w-80">
