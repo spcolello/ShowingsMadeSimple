@@ -2,6 +2,9 @@ import { AppShell, ButtonLink, Card, Section, StatusBadge } from "@/components/u
 import { demoAgents, demoShowings, formatMoney, matchingAgentsForZip } from "@/lib/demo-data";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
+const showingTimeDisclaimer =
+  "Your requested showing time is the target appointment time. The assigned agent will do everything possible to accommodate it, but the final time may need to shift based on seller requirements, property access rules, or showing availability.";
+
 export default async function ShowingDetailPage({
   searchParams,
   params,
@@ -102,6 +105,10 @@ export default async function ShowingDetailPage({
                 </dl>
               </Card>
             </div>
+            <Card className="mt-4 border-amber-200 bg-amber-50">
+              <h2 className="font-semibold text-amber-950">Showing time note</h2>
+              <p className="mt-2 text-sm leading-6 text-amber-900">{showingTimeDisclaimer}</p>
+            </Card>
             <div className="mt-6">
               <ButtonLink href="/buyer/dashboard" variant="secondary">
                 Back to dashboard
@@ -165,6 +172,10 @@ export default async function ShowingDetailPage({
             </dl>
           </Card>
         </div>
+        <Card className="mt-4 border-amber-200 bg-amber-50">
+          <h2 className="font-semibold text-amber-950">Showing time note</h2>
+          <p className="mt-2 text-sm leading-6 text-amber-900">{showingTimeDisclaimer}</p>
+        </Card>
         <div className="mt-6">
           <ButtonLink href="/buyer/dashboard" variant="secondary">
             Back to dashboard

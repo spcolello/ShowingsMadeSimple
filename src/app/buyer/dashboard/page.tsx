@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { BuyerPropertyMap } from "@/components/buyer-property-map";
 import { BuyerPropertySearch } from "@/components/buyer-property-search";
 import { BuyerShowingStatusList } from "@/components/buyer-showing-status-list";
+import { AddressShowingRequestPanel, type BuyerAddressShowingRequest } from "@/components/address-showing-request-panel";
 import { AppShell, ButtonLink, Card, Section, StatusBadge } from "@/components/ui";
 import { demoAgents, demoBuyer, demoShowings } from "@/lib/demo-data";
 import { isBuyerReady } from "@/lib/mvp-rules";
@@ -57,6 +58,17 @@ type AssignmentRow = {
 type AgentRow = {
   id: string;
   name: string | null;
+};
+
+type AddressShowingRow = {
+  id: string;
+  address: string;
+  city: string;
+  state: string;
+  zip: string;
+  preferred_time: string;
+  status: BuyerAddressShowingRequest["status"];
+  assigned_agent_id: string | null;
 };
 
 const emptyAddress = { street: "", city: "", state: "", zipCode: "" };
@@ -137,6 +149,7 @@ async function loadDashboardData() {
     return {
       buyer: demoBuyer,
       showings: demoShowings,
+      addressShowings: [] as BuyerAddressShowingRequest[],
       agentsById: new Map(demoAgents.map((agent) => [agent.id, agent.name])),
     };
   }
@@ -188,15 +201,43 @@ async function loadDashboardData() {
   return {
     buyer: mapBuyer(buyerRow),
     showings: mapShowings(showingRows, assignments),
+    addressShowings: await loadAddressShowings(supabase, userId),
     agentsById: new Map(agentRows.map((agent) => [agent.id, agent.name ?? "Assigned agent"])),
   };
 }
 
-function BuyerDashboardTabs({ activeTab }: { activeTab: "overview" | "properties" | "request" }) {
+async function loadAddressShowings(supabase: NonNullable<ReturnType<typeof getSupabaseAdmin>>, userId: string) {
+  const { data: rows } = await supabase
+    .from("address_showing_requests")
+    .select("id, address, city, state, zip, preferred_time, status, assigned_agent_id")
+    .eq("buyer_user_id", userId)
+    .order("created_at", { ascending: false })
+    .returns<AddressShowingRow[]>();
+
+  const agentIds = [...new Set((rows ?? []).map((row) => row.assigned_agent_id).filter(Boolean))] as string[];
+  const { data: agents } = agentIds.length
+    ? await supabase.from("agent_profiles").select("id, name").in("id", agentIds).returns<AgentRow[]>()
+    : { data: [] as AgentRow[] };
+  const agentsById = new Map((agents ?? []).map((agent) => [agent.id, agent.name ?? "Assigned agent"]));
+
+  return (rows ?? []).map((row) => ({
+    id: row.id,
+    address: row.address,
+    city: row.city,
+    state: row.state,
+    zip: row.zip,
+    preferredTime: row.preferred_time,
+    status: row.status,
+    assignedAgentName: row.assigned_agent_id ? agentsById.get(row.assigned_agent_id) ?? null : null,
+  })) satisfies BuyerAddressShowingRequest[];
+}
+
+function BuyerDashboardTabs({ activeTab }: { activeTab: "overview" | "properties" | "request" | "address" }) {
   const tabs = [
     ["overview", "Overview"],
     ["properties", "Property search"],
     ["request", "Request by MLS/address"],
+    ["address", "Request by any address"],
   ] as const;
 
   return (
@@ -253,11 +294,11 @@ function ManualShowingRequestPanel({
 export default async function BuyerDashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string; error?: string; payment?: string }>;
+  searchParams: Promise<{ tab?: string; error?: string; payment?: string; created?: string }>;
 }) {
   const params = await searchParams;
   const activeTab =
-    params.tab === "properties" ? "properties" : params.tab === "request" ? "request" : "overview";
+    params.tab === "properties" ? "properties" : params.tab === "request" ? "request" : params.tab === "address" ? "address" : "overview";
 
   if (activeTab === "properties") {
     await loadDashboardData();
@@ -283,7 +324,19 @@ export default async function BuyerDashboardPage({
     );
   }
 
-  const { buyer, showings, agentsById } = await loadDashboardData();
+  if (activeTab === "address") {
+    const { addressShowings } = await loadDashboardData();
+    return (
+      <AppShell>
+        <Section>
+          <BuyerDashboardTabs activeTab="address" />
+          <AddressShowingRequestPanel requests={addressShowings} error={params.error} created={params.created} />
+        </Section>
+      </AppShell>
+    );
+  }
+
+  const { buyer, showings, addressShowings, agentsById } = await loadDashboardData();
   const buyerReady = isBuyerReady(buyer);
   const missingSteps = [
     !buyer.emailVerified ? "Verify email" : null,
@@ -308,6 +361,7 @@ export default async function BuyerDashboardPage({
             <div className="flex flex-wrap gap-2">
               <ButtonLink href="/buyer/dashboard?tab=properties">Search properties</ButtonLink>
               <ButtonLink href="/buyer/dashboard?tab=request" variant="secondary">Request by MLS/address</ButtonLink>
+              <ButtonLink href="/buyer/dashboard?tab=address" variant="secondary">Request by any address</ButtonLink>
             </div>
           ) : (
             <ButtonLink href="/buyer/onboarding" variant="secondary">
@@ -406,6 +460,11 @@ export default async function BuyerDashboardPage({
             agentName: showing.assignedAgentId ? agentsById.get(showing.assignedAgentId) ?? null : null,
           }))}
         />
+        {addressShowings.length > 0 && (
+          <div className="mt-8">
+            <AddressShowingRequestPanel requests={addressShowings} />
+          </div>
+        )}
       </Section>
     </AppShell>
   );

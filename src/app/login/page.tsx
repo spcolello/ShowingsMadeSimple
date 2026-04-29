@@ -53,8 +53,7 @@ export default async function LoginPage({
             Forgot password?
           </a>
           <div className="mt-4 flex flex-wrap gap-3 text-sm">
-            <ButtonLink href="/buyer/onboarding" variant="secondary">Create buyer account</ButtonLink>
-            <ButtonLink href="/agent/onboarding" variant="secondary">Create agent account</ButtonLink>
+            <ButtonLink href="/signup" variant="secondary">Create account</ButtonLink>
           </div>
           <div className="mt-6 border-t border-slate-200 pt-4">
             <p className="text-sm font-semibold text-slate-700">Demo/mock access for development</p>

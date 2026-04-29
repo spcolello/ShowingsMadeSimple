@@ -27,10 +27,28 @@ const schema = z.object({
     "set_payment_status",
     "cancel_showing",
     "mark_showing_complete",
+    "create_lender",
+    "update_lender",
+    "toggle_lender_active",
+    "toggle_lender_featured",
+    "update_preapproval_status",
   ]),
   subjectId: z.string().min(1),
   agentId: z.string().optional(),
   paymentStatus: z.enum(["unpaid", "paid", "held", "released", "refunded", "failed"]).optional(),
+  companyName: z.string().optional(),
+  contactName: z.string().optional(),
+  email: z.string().optional(),
+  phone: z.string().optional(),
+  website: z.string().optional(),
+  nmlsId: z.string().optional(),
+  licensedStates: z.string().optional(),
+  serviceZipCodes: z.string().optional(),
+  loanTypes: z.string().optional(),
+  averageResponseMinutes: z.number().optional(),
+  isActive: z.boolean().optional(),
+  isFeatured: z.boolean().optional(),
+  preapprovalStatus: z.enum(["new", "contacted", "preapproved", "denied", "closed"]).optional(),
   isAvailable: z.boolean().optional(),
   serviceRadiusMiles: z.number().optional(),
   availableHours: z.string().optional(),
@@ -50,6 +68,13 @@ export async function POST(request: Request) {
     serviceRadiusMiles: rawPayload.serviceRadiusMiles
       ? Number(rawPayload.serviceRadiusMiles)
       : undefined,
+    averageResponseMinutes: rawPayload.averageResponseMinutes
+      ? Number(rawPayload.averageResponseMinutes)
+      : undefined,
+    isActive:
+      rawPayload.isActive === "true" ? true : rawPayload.isActive === "false" ? false : rawPayload.isActive,
+    isFeatured:
+      rawPayload.isFeatured === "true" ? true : rawPayload.isFeatured === "false" ? false : rawPayload.isFeatured,
   });
   const supabase = getSupabaseAdmin();
 
@@ -269,6 +294,48 @@ export async function POST(request: Request) {
     });
   }
 
+  if (payload.action === "create_lender" || payload.action === "update_lender") {
+    const lenderFields = {
+      company_name: payload.companyName,
+      contact_name: payload.contactName,
+      email: payload.email,
+      phone: payload.phone,
+      website: payload.website || null,
+      nmls_id: payload.nmlsId,
+      licensed_states: csvToArray(payload.licensedStates).map((state) => state.toUpperCase()),
+      service_zip_codes: csvToArray(payload.serviceZipCodes),
+      loan_types: csvToArray(payload.loanTypes),
+      average_response_minutes: payload.averageResponseMinutes ?? 30,
+      is_active: payload.isActive ?? true,
+      is_featured: payload.isFeatured ?? false,
+    };
+
+    if (!lenderFields.company_name || !lenderFields.contact_name || !lenderFields.email || !lenderFields.phone || !lenderFields.nmls_id) {
+      throw new Error("Lender company, contact, email, phone, and NMLS ID are required.");
+    }
+
+    if (payload.action === "create_lender") {
+      await supabase.from("lenders").insert(lenderFields);
+    } else {
+      await supabase.from("lenders").update(lenderFields).eq("id", payload.subjectId);
+    }
+  }
+
+  if (payload.action === "toggle_lender_active") {
+    await supabase.from("lenders").update({ is_active: payload.isActive }).eq("id", payload.subjectId);
+  }
+
+  if (payload.action === "toggle_lender_featured") {
+    await supabase.from("lenders").update({ is_featured: payload.isFeatured }).eq("id", payload.subjectId);
+  }
+
+  if (payload.action === "update_preapproval_status" && payload.preapprovalStatus) {
+    await supabase
+      .from("preapproval_requests")
+      .update({ status: payload.preapprovalStatus })
+      .eq("id", payload.subjectId);
+  }
+
   await supabase.from("audit_logs").insert({
     action: payload.action,
     subject_id: payload.subjectId,
@@ -288,4 +355,11 @@ export async function POST(request: Request) {
   return NextResponse.redirect(new URL(`${returnTo}${returnTo.includes("?") ? "&" : "?"}action=saved`, request.url), {
     status: 303,
   });
+}
+
+function csvToArray(value?: string) {
+  return (value ?? "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
 }

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { AppShell, Card, Section, StatusBadge } from "@/components/ui";
 import { demoAgents, demoBuyer, demoPayouts, demoSafetyFlags, demoShowings, formatMoney } from "@/lib/demo-data";
+import type { Lender } from "@/lib/lenders";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
 type AdminBuyer = {
@@ -50,6 +51,35 @@ type AdminSafetyFlag = {
   note: string;
 };
 
+type AdminPreapprovalRequest = {
+  id: string;
+  buyerName: string;
+  buyerEmail: string;
+  property: string;
+  lenderName: string;
+  status: string;
+  createdAt: string;
+};
+
+const demoLenders: Lender[] = [
+  {
+    id: "demo-lender-capital-region",
+    companyName: "Capital Region Home Loans",
+    contactName: "Dana Mitchell",
+    email: "dana@capitalregionhomeloans.example",
+    phone: "(518) 555-0141",
+    website: "https://example.com/capital-region-home-loans",
+    nmlsId: "NMLS-120100",
+    licensedStates: ["NY"],
+    serviceZipCodes: ["12010", "12086", "12110", "12203", "12309"],
+    loanTypes: ["Conventional", "FHA", "VA"],
+    averageResponseMinutes: 15,
+    isActive: true,
+    isFeatured: true,
+    createdAt: new Date().toISOString(),
+  },
+];
+
 function DeleteAccountForm({
   action,
   subjectId,
@@ -91,6 +121,36 @@ function AdminPostForm({
   );
 }
 
+function AdminInput({
+  name,
+  label,
+  type = "text",
+  placeholder,
+  defaultValue,
+  required = true,
+}: {
+  name: string;
+  label: string;
+  type?: string;
+  placeholder?: string;
+  defaultValue?: string;
+  required?: boolean;
+}) {
+  return (
+    <label className="grid gap-1 text-sm font-medium text-slate-700">
+      {label}
+      <input
+        name={name}
+        type={type}
+        placeholder={placeholder}
+        defaultValue={defaultValue}
+        required={required}
+        className="min-h-10 rounded-md border border-slate-300 px-3 text-sm"
+      />
+    </label>
+  );
+}
+
 async function loadAdminData() {
   const supabase = getSupabaseAdmin();
 
@@ -126,10 +186,12 @@ async function loadAdminData() {
         createdAt: new Date().toISOString(),
       })),
       safetyFlags: demoSafetyFlags,
+      lenders: demoLenders,
+      preapprovalRequests: [] as AdminPreapprovalRequest[],
     };
   }
 
-  const [buyersResult, agentsResult, showingsResult, documentsResult, paymentsResult, safetyResult] =
+  const [buyersResult, agentsResult, showingsResult, documentsResult, paymentsResult, safetyResult, lendersResult, preapprovalResult] =
     await Promise.all([
       supabase.from("buyer_profiles").select("*, users(email)").order("created_at", { ascending: false }),
       supabase.from("agent_profiles").select("*, users(email)").order("created_at", { ascending: false }),
@@ -137,6 +199,11 @@ async function loadAdminData() {
       supabase.from("verification_documents").select("id, status").order("uploaded_at", { ascending: false }),
       supabase.from("payments").select("*").order("created_at", { ascending: false }),
       supabase.from("safety_flags").select("*").order("created_at", { ascending: false }),
+      supabase.from("lenders").select("*").order("is_featured", { ascending: false }).order("company_name", { ascending: true }),
+      supabase
+        .from("preapproval_requests")
+        .select("*, buyer_profiles(full_name, users(email)), lenders(company_name)")
+        .order("created_at", { ascending: false }),
     ]);
 
   return {
@@ -183,11 +250,36 @@ async function loadAdminData() {
       status: flag.status,
       note: flag.note,
     })) satisfies AdminSafetyFlag[],
+    lenders: (lendersResult.data ?? []).map((lender) => ({
+      id: lender.id,
+      companyName: lender.company_name,
+      contactName: lender.contact_name,
+      email: lender.email,
+      phone: lender.phone,
+      website: lender.website,
+      nmlsId: lender.nmls_id,
+      licensedStates: lender.licensed_states ?? [],
+      serviceZipCodes: lender.service_zip_codes ?? [],
+      loanTypes: lender.loan_types ?? [],
+      averageResponseMinutes: lender.average_response_minutes ?? 30,
+      isActive: lender.is_active === true,
+      isFeatured: lender.is_featured === true,
+      createdAt: lender.created_at,
+    })) satisfies Lender[],
+    preapprovalRequests: (preapprovalResult.data ?? []).map((request) => ({
+      id: request.id,
+      buyerName: request.buyer_profiles?.full_name ?? "Buyer",
+      buyerEmail: request.buyer_profiles?.users?.email ?? request.buyer_email,
+      property: `${request.property_address}, ${request.property_city}, ${request.property_state} ${request.property_zip}`,
+      lenderName: request.lenders?.company_name ?? "Lender",
+      status: request.status,
+      createdAt: request.created_at,
+    })) satisfies AdminPreapprovalRequest[],
   };
 }
 
 export default async function AdminPage() {
-  const { buyers, agents, showings, documentCount, payments, safetyFlags } = await loadAdminData();
+  const { buyers, agents, showings, documentCount, payments, safetyFlags, lenders, preapprovalRequests } = await loadAdminData();
   const paymentByShowingId = new Map(payments.map((payment) => [payment.showingRequestId, payment]));
   const overview = [
     {
@@ -225,6 +317,13 @@ export default async function AdminPage() {
       pending: safetyFlags.filter((flag) => flag.status === "open").length,
       href: "#safety",
     },
+    {
+      id: "lenders",
+      title: "Lenders",
+      total: lenders.length,
+      pending: preapprovalRequests.filter((request) => request.status === "new").length,
+      href: "#lenders",
+    },
   ];
 
   return (
@@ -245,7 +344,7 @@ export default async function AdminPage() {
           </form>
         </div>
 
-        <div className="mt-8 grid gap-4 md:grid-cols-5">
+        <div className="mt-8 grid gap-4 md:grid-cols-6">
           {overview.map((item) => (
             <Card key={item.id}>
               <div className="flex items-start justify-between gap-3">
@@ -414,6 +513,133 @@ export default async function AdminPage() {
                       </button>
                     </AdminPostForm>
                   </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          <Card id="lenders" className="lg:col-span-2">
+            <h2 className="text-lg font-semibold">Lenders</h2>
+            <form action="/api/admin/actions" method="post" className="mt-4 grid gap-3 rounded-md border border-slate-200 p-4">
+              <input type="hidden" name="action" value="create_lender" />
+              <input type="hidden" name="subjectId" value="new" />
+              <div className="grid gap-3 md:grid-cols-3">
+                <AdminInput name="companyName" label="Company" />
+                <AdminInput name="contactName" label="Contact" />
+                <AdminInput name="nmlsId" label="NMLS ID" />
+                <AdminInput name="email" label="Email" type="email" />
+                <AdminInput name="phone" label="Phone" />
+                <AdminInput name="website" label="Website" required={false} />
+                <AdminInput name="licensedStates" label="Licensed states" placeholder="NY, CT" />
+                <AdminInput name="serviceZipCodes" label="Service ZIPs" placeholder="12010, 12203" required={false} />
+                <AdminInput name="loanTypes" label="Loan types" placeholder="Conventional, FHA" />
+                <AdminInput name="averageResponseMinutes" label="Avg response minutes" type="number" defaultValue="30" />
+              </div>
+              <div className="flex flex-wrap gap-4 text-sm text-slate-700">
+                <label className="flex items-center gap-2">
+                  <input type="hidden" name="isActive" value="false" />
+                  <input type="checkbox" name="isActive" value="true" defaultChecked />
+                  Active
+                </label>
+                <label className="flex items-center gap-2">
+                  <input type="hidden" name="isFeatured" value="false" />
+                  <input type="checkbox" name="isFeatured" value="true" />
+                  Featured
+                </label>
+              </div>
+              <button className="min-h-10 rounded-md bg-teal-700 px-3 text-sm font-semibold text-white hover:bg-teal-800">
+                Create lender
+              </button>
+            </form>
+
+            <div className="mt-5 grid gap-3">
+              {lenders.length === 0 && <p className="text-sm text-slate-600">No lenders yet.</p>}
+              {lenders.map((lender) => (
+                <div key={lender.id} className="rounded-md border border-slate-200 p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="font-semibold">{lender.companyName}</p>
+                      <p className="mt-1 text-sm text-slate-600">
+                        {lender.contactName} - NMLS {lender.nmlsId}
+                      </p>
+                      <p className="mt-1 text-sm text-slate-600">
+                        {lender.licensedStates.join(", ")} - {lender.loanTypes.join(", ")}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <StatusBadge status={lender.isActive ? "active" : "inactive"} />
+                      {lender.isFeatured && <StatusBadge status="featured" />}
+                    </div>
+                  </div>
+
+                  <form action="/api/admin/actions" method="post" className="mt-4 grid gap-3">
+                    <input type="hidden" name="action" value="update_lender" />
+                    <input type="hidden" name="subjectId" value={lender.id} />
+                    <div className="grid gap-3 md:grid-cols-3">
+                      <AdminInput name="companyName" label="Company" defaultValue={lender.companyName} />
+                      <AdminInput name="contactName" label="Contact" defaultValue={lender.contactName} />
+                      <AdminInput name="nmlsId" label="NMLS ID" defaultValue={lender.nmlsId} />
+                      <AdminInput name="email" label="Email" type="email" defaultValue={lender.email} />
+                      <AdminInput name="phone" label="Phone" defaultValue={lender.phone} />
+                      <AdminInput name="website" label="Website" defaultValue={lender.website ?? ""} required={false} />
+                      <AdminInput name="licensedStates" label="Licensed states" defaultValue={lender.licensedStates.join(", ")} />
+                      <AdminInput name="serviceZipCodes" label="Service ZIPs" defaultValue={lender.serviceZipCodes.join(", ")} required={false} />
+                      <AdminInput name="loanTypes" label="Loan types" defaultValue={lender.loanTypes.join(", ")} />
+                      <AdminInput name="averageResponseMinutes" label="Avg response minutes" type="number" defaultValue={String(lender.averageResponseMinutes)} />
+                    </div>
+                    <div className="flex flex-wrap gap-4 text-sm text-slate-700">
+                      <label className="flex items-center gap-2">
+                        <input type="hidden" name="isActive" value="false" />
+                        <input type="checkbox" name="isActive" value="true" defaultChecked={lender.isActive} />
+                        Active
+                      </label>
+                      <label className="flex items-center gap-2">
+                        <input type="hidden" name="isFeatured" value="false" />
+                        <input type="checkbox" name="isFeatured" value="true" defaultChecked={lender.isFeatured} />
+                        Featured
+                      </label>
+                    </div>
+                    <button className="min-h-10 rounded-md border border-slate-300 px-3 text-sm font-semibold hover:bg-slate-100">
+                      Save lender
+                    </button>
+                  </form>
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          <Card id="preapproval-requests" className="lg:col-span-2">
+            <h2 className="text-lg font-semibold">Pre-approval requests</h2>
+            <div className="mt-4 grid gap-3">
+              {preapprovalRequests.length === 0 && <p className="text-sm text-slate-600">No pre-approval requests yet.</p>}
+              {preapprovalRequests.map((request) => (
+                <div key={request.id} className="rounded-md border border-slate-200 p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="font-semibold">{request.buyerName}</p>
+                      <p className="mt-1 text-sm text-slate-600">{request.buyerEmail}</p>
+                      <p className="mt-1 text-sm text-slate-600">{request.property}</p>
+                      <p className="mt-1 text-sm text-slate-600">Lender: {request.lenderName}</p>
+                      <p className="mt-1 text-xs text-slate-500">{new Date(request.createdAt).toLocaleString()}</p>
+                    </div>
+                    <StatusBadge status={request.status} />
+                  </div>
+                  <AdminPostForm action="update_preapproval_status" subjectId={request.id} className="mt-4 flex gap-2">
+                    <select
+                      name="preapprovalStatus"
+                      defaultValue={request.status}
+                      className="min-h-10 min-w-0 flex-1 rounded-md border border-slate-300 bg-white px-2 text-sm"
+                    >
+                      {["new", "contacted", "preapproved", "denied", "closed"].map((status) => (
+                        <option key={status} value={status}>
+                          {status}
+                        </option>
+                      ))}
+                    </select>
+                    <button className="min-h-10 rounded-md border border-slate-300 px-3 text-sm font-semibold hover:bg-slate-100">
+                      Update
+                    </button>
+                  </AdminPostForm>
                 </div>
               ))}
             </div>

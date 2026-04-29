@@ -2,9 +2,20 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
+import { LenderPreapprovalSection } from "@/components/lender-preapproval-section";
 import type { Property } from "@/lib/property-types";
 
 const currency = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+
+function getPropertyBounds(properties: Property[]) {
+  if (properties.length === 0) {
+    return null;
+  }
+
+  const bounds = new mapboxgl.LngLatBounds();
+  properties.forEach((property) => bounds.extend([property.lng, property.lat]));
+  return bounds;
+}
 
 export function BuyerPropertyMap({ mapboxToken }: { mapboxToken?: string }) {
   const mapRef = useRef<mapboxgl.Map | null>(null);
@@ -94,12 +105,13 @@ export function BuyerPropertyMap({ mapboxToken }: { mapboxToken?: string }) {
 
         setMapStatus("Initializing map...");
         mapboxgl.accessToken = token;
-        const centerProperty = properties[0];
+        const bounds = getPropertyBounds(properties);
+        const center = bounds?.getCenter() ?? { lng: -74.18, lat: 42.95 };
         mapRef.current = new mapboxgl.Map({
           container: mapContainerRef.current,
           style: "mapbox://styles/mapbox/streets-v12",
-          center: [centerProperty.lng, centerProperty.lat],
-          zoom: 13.4,
+          center: [center.lng, center.lat],
+          zoom: 7.2,
         });
         mapRef.current.addControl(new mapboxgl.NavigationControl({ showCompass: true, showZoom: true }), "top-right");
         mapRef.current.on("load", () => {
@@ -151,6 +163,11 @@ export function BuyerPropertyMap({ mapboxToken }: { mapboxToken?: string }) {
         .setLngLat([property.lng, property.lat])
         .addTo(mapRef.current!);
     });
+
+    const bounds = getPropertyBounds(visibleProperties);
+    if (bounds) {
+      mapRef.current.fitBounds(bounds, { padding: 56, maxZoom: 11, duration: 0 });
+    }
   }, [visibleProperties]);
 
   async function submitShowingRequest(event: React.FormEvent<HTMLFormElement>) {
@@ -268,6 +285,7 @@ export function BuyerPropertyMap({ mapboxToken }: { mapboxToken?: string }) {
                   {property.city}, {property.state} {property.zip}
                 </p>
                 <p className="mt-2 text-sm font-semibold">{currency.format(property.price)}</p>
+                {property.mlsNumber && <p className="mt-1 text-xs text-slate-500">MLS {property.mlsNumber}</p>}
               </button>
             ))}
           </div>
@@ -311,6 +329,7 @@ export function BuyerPropertyMap({ mapboxToken }: { mapboxToken?: string }) {
                 <p className="text-sm text-slate-600">
                   {selectedProperty.city}, {selectedProperty.state} {selectedProperty.zip}
                 </p>
+                {selectedProperty.mlsNumber && <p className="mt-1 text-xs text-slate-500">MLS {selectedProperty.mlsNumber}</p>}
                 <p className="mt-2 text-sm text-slate-700">
                   {selectedProperty.beds} beds - {selectedProperty.baths} baths
                 </p>
@@ -331,31 +350,43 @@ export function BuyerPropertyMap({ mapboxToken }: { mapboxToken?: string }) {
 
       {isModalOpen && selectedProperty && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/50 p-4">
-          <div className="w-full max-w-md rounded-lg bg-white p-5 shadow-xl">
+          <div className="max-h-[90vh] w-full max-w-5xl overflow-auto rounded-lg bg-white p-5 shadow-xl">
             <h2 className="text-xl font-semibold">Request showing</h2>
             <p className="mt-2 text-sm text-slate-600">{selectedProperty.address}</p>
             {requestError && <p className="mt-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">{requestError}</p>}
-            <form onSubmit={submitShowingRequest} className="mt-5 grid gap-4">
-              <label className="grid gap-1 text-sm font-medium text-slate-700">
-                Preferred showing time
-                <input name="requestedTime" type="datetime-local" required className="min-h-11 rounded-md border border-slate-300 px-3" />
-              </label>
-              <div className="flex flex-wrap justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="min-h-11 rounded-md border border-slate-300 px-4 text-sm font-semibold hover:bg-slate-100"
-                >
-                  Cancel
-                </button>
-                <button
-                  disabled={isSubmitting}
-                  className="min-h-11 rounded-md bg-teal-700 px-4 text-sm font-semibold text-white hover:bg-teal-800 disabled:cursor-not-allowed disabled:bg-slate-400"
-                >
-                  {isSubmitting ? "Starting checkout..." : "Continue to payment"}
-                </button>
+            <div className="mt-5 grid gap-5 lg:grid-cols-[0.8fr_1.2fr] lg:items-start">
+              <form onSubmit={submitShowingRequest} className="grid gap-4 rounded-lg border border-slate-200 p-4">
+                <div>
+                  <h3 className="font-semibold">Choose showing time</h3>
+                  <p className="mt-1 text-sm text-slate-600">Pick the time you would like the agent to target.</p>
+                </div>
+                <label className="grid gap-1 text-sm font-medium text-slate-700">
+                  Preferred showing time
+                  <input name="requestedTime" type="datetime-local" required className="min-h-11 rounded-md border border-slate-300 px-3" />
+                  <span className="text-xs font-normal leading-5 text-slate-500">
+                    This is your preferred time. The assigned agent will try to accommodate it, but the final appointment may shift based on seller access requirements.
+                  </span>
+                </label>
+                <div className="flex flex-wrap justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsModalOpen(false)}
+                    className="min-h-11 rounded-md border border-slate-300 px-4 text-sm font-semibold hover:bg-slate-100"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    disabled={isSubmitting}
+                    className="min-h-11 rounded-md bg-teal-700 px-4 text-sm font-semibold text-white hover:bg-teal-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+                  >
+                    {isSubmitting ? "Starting checkout..." : "Continue to payment"}
+                  </button>
+                </div>
+              </form>
+              <div>
+                <LenderPreapprovalSection property={selectedProperty} />
               </div>
-            </form>
+            </div>
           </div>
         </div>
       )}

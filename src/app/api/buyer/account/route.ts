@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { sendBuyerVerificationEmail } from "@/lib/buyer-onboarding";
+import { normalizeUsPhoneNumber } from "@/lib/phone";
 import { getSupabaseAdmin, getSupabasePublic } from "@/lib/supabase";
 
 const schema = z
@@ -30,15 +31,16 @@ export async function POST(request: Request) {
   const supabase = getSupabaseAdmin();
   const auth = getSupabasePublic();
   const origin = request.headers.get("origin") ?? new URL(request.url).origin;
+  const phoneNumber = normalizeUsPhoneNumber(payload.data.phone);
 
   if (supabase && auth) {
     const { data, error } = await auth.auth.signUp({
       email: payload.data.email,
       password: payload.data.password,
-      phone: payload.data.phone,
+      phone: phoneNumber,
       options: {
         emailRedirectTo: `${origin}/api/auth/callback`,
-        data: { full_name: payload.data.fullName, role: "buyer" },
+        data: { full_name: payload.data.fullName, phone_number: phoneNumber, role: "buyer" },
       },
     });
 
@@ -55,15 +57,15 @@ export async function POST(request: Request) {
         role: "buyer",
         email: payload.data.email,
         full_name: payload.data.fullName,
-        phone_number: payload.data.phone,
+        phone_number: phoneNumber,
         email_verified: false,
       });
 
       await supabase.from("buyer_profiles").insert({
         user_id: data.user.id,
         full_name: payload.data.fullName,
-        phone: payload.data.phone,
-        phone_number: payload.data.phone,
+        phone: phoneNumber,
+        phone_number: phoneNumber,
         email_verified: false,
         identity_verification_status: "pending_review",
         financial_verification_status: "pending_review",

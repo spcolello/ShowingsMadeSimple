@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { LenderPreapprovalSection } from "@/components/lender-preapproval-section";
 import type { Property } from "@/lib/property-types";
 
 const currency = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
@@ -126,7 +127,7 @@ export function BuyerPropertySearch() {
 
       {selectedProperty && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/50 p-4">
-          <div className="w-full max-w-md rounded-lg bg-white p-5 shadow-xl">
+          <div className="max-h-[90vh] w-full max-w-5xl overflow-auto rounded-lg bg-white p-5 shadow-xl">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h2 className="text-xl font-semibold">Request showing</h2>
@@ -141,44 +142,54 @@ export function BuyerPropertySearch() {
                 onClick={() => setSelectedProperty(null)}
                 className="grid size-8 place-items-center rounded-full border border-slate-300 text-lg font-semibold hover:bg-slate-100"
               >
-                ×
+                x
               </button>
             </div>
-            <form action="/api/showings" method="post" className="mt-5 grid gap-4">
-              <input type="hidden" name="propertyAddress" value={selectedProperty.address} />
-              <input type="hidden" name="mlsNumber" value={selectedProperty.mlsNumber ?? ""} />
-              <input
-                type="hidden"
-                name="propertySummary"
-                value={`${selectedProperty.beds} bed, ${selectedProperty.baths} bath buyer-selected seeded property`}
-              />
-              <input type="hidden" name="zipCode" value={selectedProperty.zip} />
-              <input type="hidden" name="attendees" value="1" />
-              <label className="grid gap-1 text-sm font-medium text-slate-700">
-                Preferred showing time
-                <input name="preferredTime" type="datetime-local" required className="min-h-11 rounded-md border border-slate-300 px-3" />
-              </label>
-              <label className="grid gap-1 text-sm font-medium text-slate-700">
-                Safety notes
-                <textarea name="safetyNotes" rows={3} className="rounded-md border border-slate-300 px-3 py-2" />
-              </label>
-              <label className="flex gap-3 text-sm text-slate-700">
-                <input type="checkbox" name="seriousInterest" value="true" required className="mt-1" />
-                I am seriously interested in this property and agree to the safety and showing terms.
-              </label>
-              <div className="flex flex-wrap justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setSelectedProperty(null)}
-                  className="min-h-11 rounded-md border border-slate-300 px-4 text-sm font-semibold hover:bg-slate-100"
-                >
-                  Cancel
-                </button>
-                <button className="min-h-11 rounded-md bg-teal-700 px-4 text-sm font-semibold text-white hover:bg-teal-800">
-                  Continue to payment
-                </button>
-              </div>
-            </form>
+            <div className="mt-5 grid gap-5 lg:grid-cols-[0.8fr_1.2fr] lg:items-start">
+              <form action="/api/showings" method="post" className="grid gap-4 rounded-lg border border-slate-200 p-4">
+                <div>
+                  <h3 className="font-semibold">Choose showing time</h3>
+                  <p className="mt-1 text-sm text-slate-600">Pick the time you would like the agent to target.</p>
+                </div>
+                <input type="hidden" name="propertyAddress" value={selectedProperty.address} />
+                <input type="hidden" name="mlsNumber" value={selectedProperty.mlsNumber ?? ""} />
+                <input
+                  type="hidden"
+                  name="propertySummary"
+                  value={`${selectedProperty.beds} bed, ${selectedProperty.baths} bath buyer-selected seeded property`}
+                />
+                <input type="hidden" name="zipCode" value={selectedProperty.zip} />
+                <input type="hidden" name="attendees" value="1" />
+                <label className="grid gap-1 text-sm font-medium text-slate-700">
+                  Preferred showing time
+                  <input name="preferredTime" type="datetime-local" required className="min-h-11 rounded-md border border-slate-300 px-3" />
+                  <span className="text-xs font-normal leading-5 text-slate-500">
+                    This is your preferred time. The assigned agent will try to accommodate it, but the final appointment may shift based on seller access requirements.
+                  </span>
+                </label>
+                <label className="grid gap-1 text-sm font-medium text-slate-700">
+                  Safety notes
+                  <textarea name="safetyNotes" rows={3} className="rounded-md border border-slate-300 px-3 py-2" />
+                </label>
+                <label className="flex gap-3 text-sm text-slate-700">
+                  <input type="checkbox" name="seriousInterest" value="true" required className="mt-1" />
+                  I am seriously interested in this property and agree to the safety and showing terms.
+                </label>
+                <div className="flex flex-wrap justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedProperty(null)}
+                    className="min-h-11 rounded-md border border-slate-300 px-4 text-sm font-semibold hover:bg-slate-100"
+                  >
+                    Cancel
+                  </button>
+                  <button className="min-h-11 rounded-md bg-teal-700 px-4 text-sm font-semibold text-white hover:bg-teal-800">
+                    Continue to payment
+                  </button>
+                </div>
+              </form>
+              <LenderPreapprovalSection property={selectedProperty} />
+            </div>
           </div>
         </div>
       )}

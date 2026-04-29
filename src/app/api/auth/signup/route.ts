@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { normalizeUsPhoneNumber } from "@/lib/phone";
 import { getSupabaseAdmin, getSupabasePublic } from "@/lib/supabase";
 
 const schema = z
@@ -35,14 +36,15 @@ export async function POST(request: Request) {
   }
 
   const origin = request.headers.get("origin") ?? new URL(request.url).origin;
+  const phoneNumber = normalizeUsPhoneNumber(payload.data.phone);
 
   const { data, error } = await auth.auth.signUp({
     email: payload.data.email,
     password: payload.data.password,
-    phone: payload.data.phone,
+    phone: phoneNumber,
     options: {
       emailRedirectTo: `${origin}/api/auth/callback`,
-      data: { full_name: payload.data.fullName, role: payload.data.role },
+      data: { full_name: payload.data.fullName, phone_number: phoneNumber, role: payload.data.role },
     },
   });
 
@@ -53,35 +55,61 @@ export async function POST(request: Request) {
     );
   }
 
-  await admin.from("users").upsert({
+  if (!data.user.phone) {
+    await admin.auth.admin.updateUserById(data.user.id, {
+      phone: phoneNumber,
+      user_metadata: {
+        ...data.user.user_metadata,
+        full_name: payload.data.fullName,
+        phone_number: phoneNumber,
+        role: payload.data.role,
+      },
+    });
+  }
+
+  const { error: userError } = await admin.from("users").upsert({
     id: data.user.id,
     role: payload.data.role,
     email: payload.data.email,
     full_name: payload.data.fullName,
-    phone_number: payload.data.phone,
+    phone_number: phoneNumber,
     email_verified: false,
   });
 
+  if (userError) {
+    return NextResponse.redirect(
+      new URL(`/signup?error=${encodeURIComponent(userError.message)}`, request.url),
+      { status: 303 },
+    );
+  }
+
   if (payload.data.role === "buyer") {
-    await admin.from("buyer_profiles").upsert({
+    const { error: buyerError } = await admin.from("buyer_profiles").upsert({
       user_id: data.user.id,
       full_name: payload.data.fullName,
-      phone: payload.data.phone,
-      phone_number: payload.data.phone,
+      phone: phoneNumber,
+      phone_number: phoneNumber,
       email_verified: false,
       identity_verification_status: "pending_review",
       financial_verification_status: "pending_review",
       buyer_onboarding_completed: false,
       suspended: false,
     }, { onConflict: "user_id" });
+
+    if (buyerError) {
+      return NextResponse.redirect(
+        new URL(`/signup?error=${encodeURIComponent(buyerError.message)}`, request.url),
+        { status: 303 },
+      );
+    }
   }
 
   if (payload.data.role === "agent") {
-    await admin.from("agent_profiles").upsert({
+    const { error: agentError } = await admin.from("agent_profiles").upsert({
       user_id: data.user.id,
       name: payload.data.fullName,
-      phone: payload.data.phone,
-      phone_number: payload.data.phone,
+      phone: phoneNumber,
+      phone_number: phoneNumber,
       email_verified: false,
       license_verification_status: "pending_review",
       brokerage_verification_status: "pending_review",
@@ -92,6 +120,13 @@ export async function POST(request: Request) {
       approval_status: "pending_review",
       service_areas: [],
     }, { onConflict: "user_id" });
+
+    if (agentError) {
+      return NextResponse.redirect(
+        new URL(`/signup?error=${encodeURIComponent(agentError.message)}`, request.url),
+        { status: 303 },
+      );
+    }
   }
 
   return NextResponse.redirect(new URL("/signup?sent=true", request.url), { status: 303 });

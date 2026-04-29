@@ -2,6 +2,8 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { AppShell, ButtonLink, Card, Field, Section, StatusBadge } from "@/components/ui";
 import { demoAgents, demoBuyer, demoPayouts, demoShowings, formatMoney, matchingAgentsForZip } from "@/lib/demo-data";
+import { addressShowingStatusText, type AddressShowingStatus } from "@/lib/address-showings";
+import { distanceMiles } from "@/lib/geocoding";
 import { isAgentReady } from "@/lib/mvp-rules";
 import { nextAgentOnboardingPath } from "@/lib/onboarding-routing";
 import { getSupabaseAdmin } from "@/lib/supabase";
@@ -46,6 +48,10 @@ type AgentRow = {
   acceptance_rate: number | null;
   average_response_seconds: number | null;
   users?: { email?: string | null } | null;
+  service_zips?: string[] | null;
+  home_lat?: number | string | null;
+  home_lng?: number | string | null;
+  is_active?: boolean | null;
 };
 
 type ShowingRow = {
@@ -109,6 +115,24 @@ type PaymentRow = {
   amount_cents: number;
   status: string;
   created_at: string;
+};
+
+type AddressShowingRow = {
+  id: string;
+  address: string;
+  city: string;
+  state: string;
+  zip: string;
+  lat: number | string;
+  lng: number | string;
+  preferred_time: string;
+  buyer_name: string;
+  buyer_phone: string;
+  buyer_email: string;
+  preapproved: boolean;
+  notes: string | null;
+  status: AddressShowingStatus;
+  assigned_agent_id: string | null;
 };
 
 function mapShowingStatus(status: string): ShowingRequest["status"] {
@@ -230,6 +254,8 @@ async function loadDashboardData() {
       agent,
       nearby,
       assigned,
+      addressOpen: [] as AddressShowingRow[],
+      addressAssigned: [] as AddressShowingRow[],
       payouts: demoPayouts.filter((payout) => payout.agentId === agent.id),
       payments: [],
       buyerStatuses: new Map(demoShowings.map((showing) => [showing.id, `${demoBuyer.identityVerificationStatus}/${demoBuyer.financialVerificationStatus}`])),
@@ -337,10 +363,31 @@ async function loadDashboardData() {
   );
   const propertyDetailsById = new Map(allShowingRows.map((showing) => [showing.id, propertyDetails(showing)]));
 
+  const { data: rawAddressRows } = await supabase
+    .from("address_showing_requests")
+    .select("*")
+    .in("status", ["pending_agent", "agent_accepted_checking_mls", "available_confirmed", "reschedule_needed"])
+    .order("created_at", { ascending: false })
+    .returns<AddressShowingRow[]>();
+  const addressRows = rawAddressRows ?? [];
+  const agentZips = [...agent.serviceAreas, ...(agentRow.service_zips ?? [])];
+  const addressOpen = addressRows.filter((request) => {
+    if (request.assigned_agent_id || request.status !== "pending_agent") return false;
+    if (agentZips.includes(request.zip)) return true;
+    if (agentRow.home_lat == null || agentRow.home_lng == null) return false;
+    return distanceMiles(
+      { lat: Number(request.lat), lng: Number(request.lng) },
+      { lat: Number(agentRow.home_lat), lng: Number(agentRow.home_lng) },
+    ) <= agent.serviceRadiusMiles;
+  });
+  const addressAssigned = addressRows.filter((request) => request.assigned_agent_id === agent.id);
+
   return {
     agent,
     nearby,
     assigned,
+    addressOpen,
+    addressAssigned,
     payouts: payoutRows.map((payout) => ({
       id: payout.id,
       showingRequestId: payout.showing_request_id,
@@ -355,8 +402,60 @@ async function loadDashboardData() {
   };
 }
 
+function AddressRequestCard({ request, mode }: { request: AddressShowingRow; mode: "open" | "assigned" }) {
+  return (
+    <div className="rounded-md border border-slate-200 p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="font-semibold">{request.address}</p>
+          <p className="mt-1 text-sm text-slate-600">
+            {request.city}, {request.state} {request.zip}
+          </p>
+          <p className="mt-1 text-sm text-slate-600">{new Date(request.preferred_time).toLocaleString()}</p>
+        </div>
+        <StatusBadge status={request.status} />
+      </div>
+      <div className="mt-3 grid gap-1 text-sm text-slate-600">
+        <p>Buyer: {request.buyer_name}</p>
+        <p>Phone: {request.buyer_phone}</p>
+        <p>Email: {request.buyer_email}</p>
+        <p>Pre-approved: {request.preapproved ? "Yes" : "No"}</p>
+        <p>Notes: {request.notes || "No notes added."}</p>
+        <p>{addressShowingStatusText[request.status]}</p>
+      </div>
+      {mode === "open" ? (
+        <form action="/api/address-showings/agent-action" method="post" className="mt-4">
+          <input type="hidden" name="requestId" value={request.id} />
+          <input type="hidden" name="action" value="accept" />
+          <button className="min-h-10 rounded-md bg-teal-700 px-3 text-sm font-semibold text-white hover:bg-teal-800">
+            Accept and check MLS
+          </button>
+        </form>
+      ) : (
+        <div className="mt-4 flex flex-wrap gap-2">
+          {[
+            ["available_confirmed", "Confirm available"],
+            ["not_available", "Not available"],
+            ["reschedule_needed", "Request reschedule"],
+            ["completed", "Complete"],
+            ["cancelled", "Cancel"],
+          ].map(([action, label]) => (
+            <form key={action} action="/api/address-showings/agent-action" method="post">
+              <input type="hidden" name="requestId" value={request.id} />
+              <input type="hidden" name="action" value={action} />
+              <button className="min-h-10 rounded-md border border-slate-300 px-3 text-sm font-semibold hover:bg-slate-100">
+                {label}
+              </button>
+            </form>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default async function AgentDashboardPage() {
-  const { agent, nearby, assigned, payouts, payments, buyerStatuses, propertyDetailsById, availabilityByDay } = await loadDashboardData();
+  const { agent, nearby, assigned, addressOpen, addressAssigned, payouts, payments, buyerStatuses, propertyDetailsById, availabilityByDay } = await loadDashboardData();
   const agentReady = isAgentReady(agent);
   const completed = assigned.filter((showing) => showing.status === "completed");
   const missingSteps = [
@@ -517,6 +616,29 @@ export default async function AgentDashboardPage() {
                     </form>
                   </div>
                 </div>
+              ))}
+            </div>
+          </Card>
+        </div>
+
+        <div className="mt-8 grid gap-4 lg:grid-cols-2">
+          <Card>
+            <h2 className="text-lg font-semibold">Open address requests</h2>
+            <p className="mt-2 text-sm text-slate-600">Accept to claim the request, then check MLS availability manually.</p>
+            <div className="mt-4 grid gap-3">
+              {addressOpen.length === 0 && <p className="rounded-md border border-slate-200 p-4 text-sm text-slate-600">No open address requests in your area.</p>}
+              {addressOpen.map((request) => (
+                <AddressRequestCard key={request.id} request={request} mode="open" />
+              ))}
+            </div>
+          </Card>
+
+          <Card>
+            <h2 className="text-lg font-semibold">Assigned address requests</h2>
+            <div className="mt-4 grid gap-3">
+              {addressAssigned.length === 0 && <p className="rounded-md border border-slate-200 p-4 text-sm text-slate-600">No address requests assigned to you.</p>}
+              {addressAssigned.map((request) => (
+                <AddressRequestCard key={request.id} request={request} mode="assigned" />
               ))}
             </div>
           </Card>

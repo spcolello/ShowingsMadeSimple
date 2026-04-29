@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { geocodeAddress } from "@/lib/geocoding";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
 const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
@@ -18,6 +19,9 @@ export async function POST(request: Request) {
   const supabase = getSupabaseAdmin();
 
   if (supabase && payload.agentId) {
+    const geocodedLocation = payload.serviceLocation?.trim()
+      ? await geocodeAddress(payload.serviceLocation)
+      : null;
     const availabilityRows = selectedDays.map((day) => {
       const dayIndex = days.indexOf(day as typeof days[number]);
       return {
@@ -33,8 +37,12 @@ export async function POST(request: Request) {
       available_start_time: availabilityRows[0]?.start_time ?? null,
       available_end_time: availabilityRows[0]?.end_time ?? null,
       service_location: payload.serviceLocation?.trim() || null,
+      service_zips: geocodedLocation ? [geocodedLocation.zip] : undefined,
+      home_lat: geocodedLocation?.lat ?? null,
+      home_lng: geocodedLocation?.lng ?? null,
       service_radius_miles: payload.serviceRadiusMiles,
       is_available: payload.isAvailable === "true",
+      is_active: true,
     }).eq("id", payload.agentId);
 
     await supabase.from("agent_availability").delete().eq("agent_id", payload.agentId);
