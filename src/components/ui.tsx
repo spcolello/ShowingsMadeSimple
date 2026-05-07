@@ -166,6 +166,7 @@ export function Field({
   placeholder,
   defaultValue,
   required = true,
+  inputMode,
 }: {
   label: string;
   name: string;
@@ -173,6 +174,7 @@ export function Field({
   placeholder?: string;
   defaultValue?: string | number;
   required?: boolean;
+  inputMode?: React.HTMLAttributes<HTMLInputElement>["inputMode"];
 }) {
   return (
     <label className="grid gap-1.5 text-sm font-medium text-slate-700">
@@ -183,6 +185,7 @@ export function Field({
         placeholder={placeholder}
         defaultValue={defaultValue}
         required={required}
+        inputMode={inputMode}
         className="min-h-11 rounded-md border border-slate-300 bg-white px-3 text-slate-950 shadow-sm"
       />
     </label>

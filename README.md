@@ -1,13 +1,13 @@
 # Showings Made Simple
 
-MVP web app for verified buyers to request on-demand property showings and for nearby licensed agents to accept first-come-first-serve SMS alerts.
+MVP web app for verified buyers to request on-demand property showings and for nearby licensed agents to accept first-come-first-serve showing alerts.
 
 ## Stack
 
 - Next.js App Router, TypeScript, Tailwind CSS
 - Supabase auth/database/storage/RLS
 - Stripe Checkout for buyer showing fees
-- Twilio SMS with safe mock mode for local testing
+- In-app/mock notifications for now; Twilio can be re-enabled later
 - ZIP/service-area matching for the MVP
 
 ## Local setup
@@ -20,11 +20,11 @@ npm run dev
 
 Open `http://localhost:3000`.
 
-The app works without credentials in demo mode. Add Supabase, Stripe, and Twilio values in `.env.local` to use live services.
+The app works without credentials in demo mode. Add Supabase and Stripe values in `.env.local` to use live services.
 
 ## Environment variables
 
-See `.env.example` for all keys. Keep `SMS_MOCK_MODE=true` while developing so Twilio messages are logged instead of sent.
+See `.env.example` for all keys. Twilio is currently disabled in the code path, so phone verification uses mock code `123456` and SMS alerts are logged instead of sent.
 
 For Stripe, set `STRIPE_SECRET_KEY` first. `STRIPE_SHOWING_PRICE_ID` is optional now; if it is blank, Checkout uses the request fee stored on the showing row. Set `STRIPE_WEBHOOK_SECRET` after running a Stripe webhook listener or adding the production webhook endpoint in Stripe.
 

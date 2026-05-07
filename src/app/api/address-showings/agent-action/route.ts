@@ -40,9 +40,16 @@ export async function POST(request: Request) {
     return NextResponse.redirect(new URL("/agent/dashboard?addressAction=missing_config", request.url), { status: 303 });
   }
 
-  const { data: agent } = await supabase.from("agent_profiles").select("id").eq("user_id", userId).maybeSingle();
+  const { data: agent } = await supabase
+    .from("agent_profiles")
+    .select("id, phone_verified, approval_status")
+    .eq("user_id", userId)
+    .maybeSingle();
   if (!agent) {
     return NextResponse.redirect(new URL("/agent/dashboard?addressAction=no_agent", request.url), { status: 303 });
+  }
+  if (!agent.phone_verified || agent.approval_status !== "approved") {
+    return NextResponse.redirect(new URL("/agent/dashboard?addressAction=phone_required", request.url), { status: 303 });
   }
 
   if (parsed.data.action === "accept") {

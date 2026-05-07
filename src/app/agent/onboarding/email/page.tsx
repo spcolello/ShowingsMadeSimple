@@ -22,7 +22,7 @@ export default async function AgentEmailVerificationPage({
           </h1>
           <p className="mt-2 text-sm text-slate-600">
             {verified
-              ? "Your email is verified. Continue to license verification."
+              ? "Your email is verified. Continue to phone verification."
               : `We sent a verification link or code to ${email}. Local mock code: 123456.`}
           </p>
           {params.error && (
@@ -56,8 +56,8 @@ export default async function AgentEmailVerificationPage({
               </form>
             </div>
           ) : (
-            <a href="/agent/onboarding/license" className="mt-6 inline-flex min-h-11 items-center rounded-md bg-teal-700 px-4 text-sm font-semibold text-white hover:bg-teal-800">
-              Continue to license verification
+            <a href="/agent/onboarding/phone" className="mt-6 inline-flex min-h-11 items-center rounded-md bg-teal-700 px-4 text-sm font-semibold text-white hover:bg-teal-800">
+              Continue to phone verification
             </a>
           )}
         </Card>

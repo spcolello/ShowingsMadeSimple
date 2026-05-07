@@ -42,7 +42,7 @@ export async function createShowingRequest(input: ShowingInput) {
 
   const { data, error } = await supabase
     .from("buyer_profiles")
-    .select("email_verified, identity_verification_status, financial_verification_status, buyer_onboarding_completed, suspended")
+    .select("email_verified, phone_verified, identity_verification_status, financial_verification_status, buyer_onboarding_completed, suspended")
     .eq("id", input.buyerId)
     .single();
 
@@ -52,6 +52,7 @@ export async function createShowingRequest(input: ShowingInput) {
 
   if (
     !data.email_verified ||
+    !data.phone_verified ||
     data.identity_verification_status !== "approved" ||
     data.financial_verification_status !== "approved" ||
     !data.buyer_onboarding_completed ||
@@ -74,9 +75,9 @@ export async function createShowingRequest(input: ShowingInput) {
       serious_interest_confirmed: input.seriousInterest,
       status: "pending",
       payment_status: "unpaid",
-      showing_fee_cents: 7500,
-      agent_payout_cents: 6000,
-      platform_fee_cents: 1500,
+      showing_fee_cents: 3000,
+      agent_payout_cents: 2500,
+      platform_fee_cents: 500,
     })
     .select()
     .single();
@@ -134,6 +135,7 @@ export async function notifyMatchingAgents(showingId: string) {
     .select("*")
     .eq("approval_status", "approved")
     .eq("is_available", true)
+    .eq("phone_verified", true)
     .contains("service_areas", [showing.zip_code])
     .not("phone", "is", null);
 
@@ -182,6 +184,20 @@ export async function acceptShowingRequest(showingId: string, agentId: string) {
     return { accepted: true, agent, message: "You are assigned to this showing." };
   }
 
+  const { data: agent, error: agentError } = await supabase
+    .from("agent_profiles")
+    .select("phone_verified, approval_status")
+    .eq("id", agentId)
+    .maybeSingle();
+
+  if (agentError) {
+    throw agentError;
+  }
+
+  if (!agent?.phone_verified || agent.approval_status !== "approved") {
+    return { accepted: false, message: "Agent approval and phone verification are required before accepting showings." };
+  }
+
   const { data, error } = await supabase.rpc("accept_showing_request", {
     p_showing_request_id: showingId,
     p_agent_id: agentId,
@@ -205,7 +221,7 @@ export async function acceptShowingRequest(showingId: string, agentId: string) {
 export async function completeShowing(showingId: string, agentId: string) {
   const supabase = getSupabaseAdmin();
   if (!supabase) {
-    return { completed: true, payoutStatus: "released", pendingEarningsCents: 6000 };
+    return { completed: true, payoutStatus: "released", pendingEarningsCents: 2500 };
   }
 
   const { error } = await supabase.rpc("complete_showing", {
@@ -226,7 +242,7 @@ export async function completeShowing(showingId: string, agentId: string) {
   await supabase.from("payouts").upsert({
     showing_request_id: showingId,
     agent_id: agentId,
-    amount_cents: showing?.agent_payout_cents ?? 6000,
+    amount_cents: showing?.agent_payout_cents ?? 2500,
     status: "pending",
   }, { onConflict: "showing_request_id,agent_id" });
 

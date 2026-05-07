@@ -37,6 +37,16 @@ export async function POST(request: Request) {
     return NextResponse.redirect(new URL("/buyer/dashboard?tab=address&error=Supabase is not configured.", request.url), { status: 303 });
   }
 
+  const { data: buyerProfile } = await supabase
+    .from("buyer_profiles")
+    .select("phone_verified, suspended")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (!buyerProfile?.phone_verified || buyerProfile.suspended) {
+    return NextResponse.redirect(new URL("/buyer/dashboard?tab=address&error=Verify your phone before requesting a showing.", request.url), { status: 303 });
+  }
+
   const geocoded = await geocodeAddress(parsed.data.address);
   const preferredTime = new Date(parsed.data.preferredTime);
   if (Number.isNaN(preferredTime.getTime())) {
@@ -70,8 +80,9 @@ export async function POST(request: Request) {
 
   const { data: agents } = await supabase
     .from("agent_profiles")
-    .select("id, name, phone, service_zips, service_areas, service_radius_miles, home_lat, home_lng, is_active, is_available, users(email)")
-    .eq("approval_status", "approved");
+    .select("id, name, phone, phone_verified, service_zips, service_areas, service_radius_miles, home_lat, home_lng, is_active, is_available, users(email)")
+    .eq("approval_status", "approved")
+    .eq("phone_verified", true);
   const matchedAgents = findMatchingAddressAgents(agents ?? [], geocoded);
 
   if (matchedAgents.length === 0) {

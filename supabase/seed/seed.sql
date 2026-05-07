@@ -169,8 +169,8 @@ values (
   true,
   'pending',
   'held',
-  7500,
-  6000,
-  1500,
+  3000,
+  2500,
+  500,
   now()
 ) on conflict (id) do nothing;

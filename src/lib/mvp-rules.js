@@ -1,6 +1,7 @@
 export function isBuyerReady(buyer) {
   return (
     buyer.emailVerified === true &&
+    buyer.phoneVerified === true &&
     buyer.identityVerificationStatus === "approved" &&
     buyer.financialVerificationStatus === "approved" &&
     buyer.buyerOnboardingCompleted === true &&
@@ -15,6 +16,7 @@ export function canBroadcastShowing(showing) {
 export function isAgentReady(agent) {
   return (
     agent.emailVerified === true &&
+    agent.phoneVerified === true &&
     agent.licenseVerificationStatus === "approved" &&
     agent.brokerageVerificationStatus === "approved" &&
     agent.w9VerificationStatus === "approved" &&

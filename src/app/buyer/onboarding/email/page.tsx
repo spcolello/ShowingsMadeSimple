@@ -22,7 +22,7 @@ export default async function BuyerEmailVerificationPage({
           </h1>
           <p className="mt-2 text-sm text-slate-600">
             {verified
-              ? "Your email is verified. Continue to identity verification."
+              ? "Your email is verified. Continue to phone verification."
               : `We sent a verification link or code to ${email}. Local mock code: 123456.`}
           </p>
 
@@ -63,10 +63,10 @@ export default async function BuyerEmailVerificationPage({
             </div>
           ) : (
             <a
-              href="/buyer/onboarding/identity"
+              href="/buyer/onboarding/phone"
               className="mt-6 inline-flex min-h-11 items-center rounded-md bg-teal-700 px-4 text-sm font-semibold text-white hover:bg-teal-800"
             >
-              Continue to identity verification
+              Continue to phone verification
             </a>
           )}
         </Card>

@@ -1,23 +1,13 @@
-import twilio from "twilio";
-import { env } from "./env";
-
 export async function sendSms(to: string, body: string) {
-  if (
-    env.smsMockMode ||
-    !env.twilioAccountSid ||
-    !env.twilioAuthToken ||
-    !env.twilioFromNumber
-  ) {
-    console.info("[mock sms]", { to, body });
-    return { mocked: true, sid: `mock-${Date.now()}` };
-  }
+  console.info("[mock sms - Twilio disabled]", { to, body });
+  return { mocked: true, sid: `mock-${Date.now()}` };
+}
 
-  const client = twilio(env.twilioAccountSid, env.twilioAuthToken);
-  const message = await client.messages.create({
-    to,
-    from: env.twilioFromNumber,
-    body,
-  });
+export async function sendPhoneVerificationCode(to: string) {
+  console.info("[mock phone verification - Twilio disabled]", { to, code: "123456" });
+  return { mocked: true, sid: `mock-verify-${Date.now()}` };
+}
 
-  return { mocked: false, sid: message.sid };
+export async function checkPhoneVerificationCode(to: string, code: string) {
+  return { mocked: true, approved: code === "123456", status: code === "123456" ? "approved" : "pending", to };
 }

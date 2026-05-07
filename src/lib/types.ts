@@ -25,6 +25,7 @@ export type BuyerProfile = {
   email: string;
   phone: string;
   emailVerified: boolean;
+  phoneVerified: boolean;
   identityVerificationStatus: VerificationStatus;
   financialVerificationStatus: VerificationStatus;
   governmentIdFileUrl?: string;
@@ -48,6 +49,7 @@ export type AgentProfile = {
   email: string;
   phone: string;
   emailVerified: boolean;
+  phoneVerified: boolean;
   licenseNumber: string;
   licenseState: string;
   licenseExpirationDate: string;

@@ -14,6 +14,7 @@ type AgentRow = {
   name: string | null;
   phone: string | null;
   email_verified: boolean | null;
+  phone_verified: boolean | null;
   license_number: string | null;
   license_state: string | null;
   licensed_state: string | null;
@@ -73,8 +74,12 @@ type ShowingRow = {
   requested_at: string;
   completed_at: string | null;
   buyer_profiles?: {
+    full_name?: string | null;
+    phone?: string | null;
+    phone_number?: string | null;
     identity_verification_status?: BuyerProfile["identityVerificationStatus"] | null;
     financial_verification_status?: BuyerProfile["financialVerificationStatus"] | null;
+    users?: { email?: string | null } | null;
   } | null;
   properties?: {
     address?: string | null;
@@ -160,6 +165,7 @@ function mapAgent(row: AgentRow): AgentProfile {
     email: row.users?.email ?? "",
     phone: row.phone ?? "",
     emailVerified: row.email_verified === true,
+    phoneVerified: row.phone_verified === true,
     licenseNumber: row.license_number ?? "",
     licenseState: row.license_state ?? row.licensed_state ?? "",
     licenseExpirationDate: row.license_expiration_date ?? "",
@@ -224,8 +230,8 @@ function mapShowing(row: ShowingRow, assignment?: AssignmentRow): ShowingRequest
     status: mapShowingStatus(row.status),
     paymentStatus: mapPaymentStatus(row.payment_status),
     showingFeeCents: row.showing_fee_cents,
-    agentPayoutCents: row.agent_payout_cents ?? 6000,
-    platformFeeCents: row.platform_fee_cents ?? 1500,
+    agentPayoutCents: row.agent_payout_cents ?? 2500,
+    platformFeeCents: row.platform_fee_cents ?? 500,
     assignedAgentId: assignment?.agent_id,
     createdAt: row.requested_at,
     completedAt: row.completed_at ?? undefined,
@@ -259,6 +265,11 @@ async function loadDashboardData() {
       payouts: demoPayouts.filter((payout) => payout.agentId === agent.id),
       payments: [],
       buyerStatuses: new Map(demoShowings.map((showing) => [showing.id, `${demoBuyer.identityVerificationStatus}/${demoBuyer.financialVerificationStatus}`])),
+      buyerContactByShowingId: new Map(demoShowings.map((showing) => [showing.id, {
+        name: demoBuyer.fullName,
+        phone: demoBuyer.phone,
+        email: demoBuyer.email,
+      }])),
       propertyDetailsById: new Map(demoShowings.map((showing) => [showing.id, showing.propertySummary])),
       availabilityByDay: new Map(agent.availableDays.map((day) => [day, {
         startTime: agent.availableStartTime || "09:00",
@@ -308,7 +319,7 @@ async function loadDashboardData() {
 
   const { data: rawShowingRows } = await supabase
     .from("showing_requests")
-    .select("*, buyer_profiles(identity_verification_status, financial_verification_status), properties(address, city, state, zip, price, beds, baths, mls_number, image_url)")
+    .select("*, buyer_profiles(full_name, phone, phone_number, identity_verification_status, financial_verification_status, users(email)), properties(address, city, state, zip, price, beds, baths, mls_number, image_url)")
     .order("requested_at", { ascending: false })
     .returns<ShowingRow[]>();
   const allShowingRows = rawShowingRows ?? [];
@@ -362,6 +373,16 @@ async function loadDashboardData() {
     ]),
   );
   const propertyDetailsById = new Map(allShowingRows.map((showing) => [showing.id, propertyDetails(showing)]));
+  const buyerContactByShowingId = new Map(
+    allShowingRows.map((showing) => [
+      showing.id,
+      {
+        name: showing.buyer_profiles?.full_name ?? "Buyer",
+        phone: showing.buyer_profiles?.phone_number ?? showing.buyer_profiles?.phone ?? "",
+        email: showing.buyer_profiles?.users?.email ?? "",
+      },
+    ]),
+  );
 
   const { data: rawAddressRows } = await supabase
     .from("address_showing_requests")
@@ -397,6 +418,7 @@ async function loadDashboardData() {
     })),
     payments,
     buyerStatuses,
+    buyerContactByShowingId,
     propertyDetailsById,
     availabilityByDay,
   };
@@ -416,9 +438,19 @@ function AddressRequestCard({ request, mode }: { request: AddressShowingRow; mod
         <StatusBadge status={request.status} />
       </div>
       <div className="mt-3 grid gap-1 text-sm text-slate-600">
-        <p>Buyer: {request.buyer_name}</p>
-        <p>Phone: {request.buyer_phone}</p>
-        <p>Email: {request.buyer_email}</p>
+        {mode === "assigned" ? (
+          <>
+            <p>Buyer: {request.buyer_name}</p>
+            <p>
+              Phone: <a className="font-semibold text-teal-700" href={`tel:${request.buyer_phone}`}>{request.buyer_phone}</a>
+            </p>
+            <p>
+              Email: <a className="font-semibold text-teal-700" href={`mailto:${request.buyer_email}`}>{request.buyer_email}</a>
+            </p>
+          </>
+        ) : (
+          <p>Buyer contact unlocks after you accept and claim this request.</p>
+        )}
         <p>Pre-approved: {request.preapproved ? "Yes" : "No"}</p>
         <p>Notes: {request.notes || "No notes added."}</p>
         <p>{addressShowingStatusText[request.status]}</p>
@@ -455,11 +487,12 @@ function AddressRequestCard({ request, mode }: { request: AddressShowingRow; mod
 }
 
 export default async function AgentDashboardPage() {
-  const { agent, nearby, assigned, addressOpen, addressAssigned, payouts, payments, buyerStatuses, propertyDetailsById, availabilityByDay } = await loadDashboardData();
+  const { agent, nearby, assigned, addressOpen, addressAssigned, payouts, payments, buyerStatuses, buyerContactByShowingId, propertyDetailsById, availabilityByDay } = await loadDashboardData();
   const agentReady = isAgentReady(agent);
   const completed = assigned.filter((showing) => showing.status === "completed");
   const missingSteps = [
     !agent.emailVerified ? "Verify email" : null,
+    !agent.phoneVerified ? "Verify phone" : null,
     agent.licenseVerificationStatus !== "approved" ? "License approval" : null,
     agent.brokerageVerificationStatus !== "approved" ? "Brokerage approval" : null,
     agent.w9VerificationStatus !== "approved" ? "W-9 approval" : null,
@@ -482,8 +515,9 @@ export default async function AgentDashboardPage() {
           <StatusBadge status={agentReady ? "ready_to_accept" : "onboarding_blocked"} />
         </div>
 
-        <div className="mt-8 grid gap-4 md:grid-cols-5">
+        <div className="mt-8 grid gap-4 md:grid-cols-6">
           <Card><p className="text-sm text-slate-500">Email</p><div className="mt-3"><StatusBadge status={agent.emailVerified ? "verified" : "not_verified"} /></div></Card>
+          <Card><p className="text-sm text-slate-500">Phone</p><div className="mt-3"><StatusBadge status={agent.phoneVerified ? "verified" : "not_verified"} /></div></Card>
           <Card><p className="text-sm text-slate-500">License</p><div className="mt-3"><StatusBadge status={agent.licenseVerificationStatus} /></div></Card>
           <Card><p className="text-sm text-slate-500">Brokerage</p><div className="mt-3"><StatusBadge status={agent.brokerageVerificationStatus} /></div></Card>
           <Card><p className="text-sm text-slate-500">W-9</p><div className="mt-3"><StatusBadge status={agent.w9VerificationStatus} /></div></Card>
@@ -653,6 +687,18 @@ export default async function AgentDashboardPage() {
               )}
               {assigned.filter((showing) => showing.status !== "completed").map((showing) => (
                 <div key={showing.id} className="rounded-md border border-slate-200 p-4">
+                  {(() => {
+                    const contact = buyerContactByShowingId.get(showing.id);
+                    return contact ? (
+                      <div className="mb-3 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
+                        <p className="font-semibold">Buyer contact</p>
+                        <p>{contact.name}</p>
+                        {contact.phone && <p><a className="font-semibold text-teal-700" href={`tel:${contact.phone}`}>{contact.phone}</a></p>}
+                        {contact.email && <p><a className="font-semibold text-teal-700" href={`mailto:${contact.email}`}>{contact.email}</a></p>}
+                        <p className="mt-1 text-xs">Use only for coordinating this showing.</p>
+                      </div>
+                    ) : null;
+                  })()}
                   <div className="flex items-start justify-between gap-3">
                     <p className="font-semibold">{showing.propertyAddress ?? showing.mlsNumber}</p>
                     <StatusBadge status={showing.status} />

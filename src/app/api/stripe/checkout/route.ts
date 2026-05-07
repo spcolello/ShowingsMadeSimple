@@ -24,7 +24,7 @@ export async function GET(request: Request) {
       await holdShowingPayment({
         showingId: showing.id,
         checkoutSessionId: `mock_${crypto.randomUUID()}`,
-        amountCents: showing.showing_fee_cents ?? 7500,
+        amountCents: showing.showing_fee_cents ?? 3000,
       });
     }
     return NextResponse.redirect(
@@ -33,7 +33,7 @@ export async function GET(request: Request) {
     );
   }
 
-  const amountCents = showing?.showing_fee_cents ?? 7500;
+  const amountCents = showing?.showing_fee_cents ?? 3000;
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
     line_items: [

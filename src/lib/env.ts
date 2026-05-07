@@ -9,6 +9,7 @@ export const env = {
   twilioAccountSid: process.env.TWILIO_ACCOUNT_SID,
   twilioAuthToken: process.env.TWILIO_AUTH_TOKEN,
   twilioFromNumber: process.env.TWILIO_FROM_NUMBER,
+  twilioVerifyServiceSid: process.env.TWILIO_VERIFY_SERVICE_SID,
   smsMockMode: process.env.SMS_MOCK_MODE !== "false",
 };
 

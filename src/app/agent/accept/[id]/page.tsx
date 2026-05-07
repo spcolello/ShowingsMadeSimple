@@ -96,7 +96,7 @@ async function loadShowing(id: string): Promise<{ showing: ShowingReview; agentI
       safetyNotes: showing.safety_notes ?? showing.notes ?? "No safety notes provided.",
       attendees: showing.attendees ?? 1,
       status: showing.status,
-      payoutCents: showing.agent_payout_cents ?? 6000,
+      payoutCents: showing.agent_payout_cents ?? 2500,
       buyerVerification: `${showing.buyer_profiles?.identity_verification_status ?? "unknown"}/${showing.buyer_profiles?.financial_verification_status ?? "unknown"}`,
       alreadyAssigned: Boolean(assignment),
     },

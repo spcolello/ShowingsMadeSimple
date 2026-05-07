@@ -47,8 +47,8 @@ alter table public.showing_requests
   add column if not exists mls_number text,
   add column if not exists property_summary text,
   add column if not exists safety_notes text,
-  add column if not exists agent_payout_cents integer not null default 6000,
-  add column if not exists platform_fee_cents integer not null default 1500;
+  add column if not exists agent_payout_cents integer not null default 2500,
+  add column if not exists platform_fee_cents integer not null default 500;
 
 alter table if exists public.documents rename to verification_documents;
 

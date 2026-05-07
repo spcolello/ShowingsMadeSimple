@@ -37,7 +37,7 @@ export async function holdShowingPayment(input: ShowingPaymentInput) {
       showing_request_id: input.showingId,
       stripe_checkout_session_id: input.checkoutSessionId,
       stripe_payment_intent_id: input.paymentIntentId,
-      amount_cents: input.amountCents ?? showing?.showing_fee_cents ?? 7500,
+      amount_cents: input.amountCents ?? showing?.showing_fee_cents ?? 3000,
       status: "held",
     },
     { onConflict: "showing_request_id" },

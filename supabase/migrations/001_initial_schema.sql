@@ -60,7 +60,7 @@ create table public.showing_requests (
   serious_interest_confirmed boolean not null default false,
   status public.showing_status not null default 'draft',
   payment_status text not null default 'unpaid',
-  showing_fee_cents integer not null default 7500,
+  showing_fee_cents integer not null default 3000,
   requested_at timestamptz not null default now(),
   payment_completed_at timestamptz,
   completed_at timestamptz,
@@ -175,7 +175,7 @@ begin
   where showing_request_id = p_showing_request_id and agent_id = p_agent_id;
 
   update public.agent_profiles
-  set pending_earnings_cents = pending_earnings_cents + 6000
+  set pending_earnings_cents = pending_earnings_cents + 2500
   where id = p_agent_id;
 
   insert into public.compliance_logs (action, subject_table, subject_id, metadata)

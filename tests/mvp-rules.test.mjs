@@ -10,6 +10,7 @@ import {
 
 const verifiedBuyer = {
   emailVerified: true,
+  phoneVerified: true,
   identityVerificationStatus: "approved",
   financialVerificationStatus: "approved",
   buyerOnboardingCompleted: true,
@@ -22,7 +23,7 @@ const showing = {
   preferredTime: "2026-04-27T15:00:00Z",
   status: "pending",
   paymentStatus: "held",
-  agentPayoutCents: 6000,
+  agentPayoutCents: 2500,
 };
 
 const agents = [
@@ -30,6 +31,7 @@ const agents = [
     id: "agent-fast",
     phone: "+15550000001",
     emailVerified: true,
+    phoneVerified: true,
     licenseVerificationStatus: "approved",
     brokerageVerificationStatus: "approved",
     w9VerificationStatus: "approved",
@@ -47,6 +49,7 @@ const agents = [
     id: "agent-slow",
     phone: "+15550000002",
     emailVerified: true,
+    phoneVerified: true,
     licenseVerificationStatus: "approved",
     brokerageVerificationStatus: "approved",
     w9VerificationStatus: "approved",
@@ -64,6 +67,7 @@ const agents = [
     id: "agent-pending",
     phone: "+15550000003",
     emailVerified: true,
+    phoneVerified: true,
     licenseVerificationStatus: "approved",
     brokerageVerificationStatus: "approved",
     w9VerificationStatus: "approved",
@@ -131,6 +135,6 @@ const assigned = { ...showing, status: "agent_assigned", assignedAgentId: "agent
 const completed = completeShowingAndCreatePayout(assigned, "agent-fast");
 assert.equal(completed.completed, true, "showing should complete");
 assert.equal(completed.showing.paymentStatus, "released", "payment should release");
-assert.equal(completed.payout.amountCents, 6000, "payout should match agent amount");
+assert.equal(completed.payout.amountCents, 2500, "payout should match agent amount");
 
 console.log("MVP workflow tests passed");

@@ -4,6 +4,7 @@ import { clsx } from "clsx";
 const steps = [
   ["account", "Account"],
   ["email", "Email"],
+  ["phone", "Phone"],
   ["identity", "Identity"],
   ["financial", "Financial"],
   ["complete", "Review"],
@@ -13,7 +14,7 @@ export function BuyerOnboardingSteps({ current }: { current: string }) {
   const currentIndex = steps.findIndex(([key]) => key === current);
 
   return (
-    <ol className="mb-6 grid gap-2 sm:grid-cols-5">
+    <ol className="mb-6 grid gap-2 sm:grid-cols-6">
       {steps.map(([key, label], index) => {
         const done = index < currentIndex;
         const active = key === current;
@@ -39,6 +40,7 @@ export function BuyerOnboardingSteps({ current }: { current: string }) {
 const agentSteps = [
   ["account", "Account"],
   ["email", "Email"],
+  ["phone", "Phone"],
   ["license", "License"],
   ["brokerage", "Brokerage"],
   ["tax", "W-9"],
@@ -50,7 +52,7 @@ export function AgentOnboardingSteps({ current }: { current: string }) {
   const currentIndex = agentSteps.findIndex(([key]) => key === current);
 
   return (
-    <ol className="mb-6 grid gap-2 sm:grid-cols-7">
+    <ol className="mb-6 grid gap-2 sm:grid-cols-8">
       {agentSteps.map(([key, label], index) => {
         const done = index < currentIndex;
         const active = key === current;

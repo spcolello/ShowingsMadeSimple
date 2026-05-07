@@ -1,5 +1,6 @@
 type BuyerOnboardingRow = {
   email_verified?: boolean | null;
+  phone_verified?: boolean | null;
   government_id_file_url?: string | null;
   selfie_file_url?: string | null;
   address?: unknown | null;
@@ -10,6 +11,7 @@ type BuyerOnboardingRow = {
 
 type AgentOnboardingRow = {
   email_verified?: boolean | null;
+  phone_verified?: boolean | null;
   license_number?: string | null;
   license_file_url?: string | null;
   brokerage_name?: string | null;
@@ -25,6 +27,10 @@ type AgentOnboardingRow = {
 export function nextBuyerOnboardingPath(profile?: BuyerOnboardingRow | null) {
   if (!profile?.email_verified) {
     return "/buyer/onboarding/email";
+  }
+
+  if (!profile.phone_verified) {
+    return "/buyer/onboarding/phone";
   }
 
   if (!profile.government_id_file_url || !profile.selfie_file_url || !profile.address) {
@@ -45,6 +51,10 @@ export function nextBuyerOnboardingPath(profile?: BuyerOnboardingRow | null) {
 export function nextAgentOnboardingPath(profile?: AgentOnboardingRow | null) {
   if (!profile?.email_verified) {
     return "/agent/onboarding/email";
+  }
+
+  if (!profile.phone_verified) {
+    return "/agent/onboarding/phone";
   }
 
   if (!profile.license_number || !profile.license_file_url) {

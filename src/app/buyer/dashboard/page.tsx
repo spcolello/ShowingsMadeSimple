@@ -17,6 +17,7 @@ type BuyerRow = {
   full_name: string | null;
   phone: string | null;
   email_verified: boolean | null;
+  phone_verified: boolean | null;
   identity_verification_status: BuyerProfile["identityVerificationStatus"] | null;
   financial_verification_status: BuyerProfile["financialVerificationStatus"] | null;
   government_id_file_url: string | null;
@@ -98,6 +99,7 @@ function mapBuyer(row: BuyerRow): BuyerProfile {
     email: row.users?.email ?? "",
     phone: row.phone ?? "",
     emailVerified: row.email_verified === true,
+    phoneVerified: row.phone_verified === true,
     identityVerificationStatus: row.identity_verification_status ?? "not_started",
     financialVerificationStatus: row.financial_verification_status ?? "not_started",
     governmentIdFileUrl: row.government_id_file_url ?? undefined,
@@ -128,8 +130,8 @@ function mapShowings(rows: ShowingRow[], assignments: AssignmentRow[]): ShowingR
       status: mapShowingStatus(row.status),
       paymentStatus: mapPaymentStatus(row.payment_status),
       showingFeeCents: row.showing_fee_cents,
-      agentPayoutCents: row.agent_payout_cents ?? 6000,
-      platformFeeCents: row.platform_fee_cents ?? 1500,
+      agentPayoutCents: row.agent_payout_cents ?? 2500,
+      platformFeeCents: row.platform_fee_cents ?? 500,
       assignedAgentId: assignment?.agent_id,
       createdAt: row.requested_at,
       completedAt: row.completed_at ?? undefined,
@@ -340,6 +342,7 @@ export default async function BuyerDashboardPage({
   const buyerReady = isBuyerReady(buyer);
   const missingSteps = [
     !buyer.emailVerified ? "Verify email" : null,
+    !buyer.phoneVerified ? "Verify phone" : null,
     buyer.identityVerificationStatus !== "approved" ? "Identity approval" : null,
     buyer.financialVerificationStatus !== "approved" ? "Financial approval" : null,
     !buyer.buyerOnboardingCompleted ? "Complete onboarding" : null,
@@ -370,11 +373,17 @@ export default async function BuyerDashboardPage({
           )}
         </div>
 
-        <div className="mt-8 grid gap-4 md:grid-cols-4">
+        <div className="mt-8 grid gap-4 md:grid-cols-5">
           <Card>
             <p className="text-sm text-slate-500">Email</p>
             <div className="mt-3">
               <StatusBadge status={buyer.emailVerified ? "verified" : "not_verified"} />
+            </div>
+          </Card>
+          <Card>
+            <p className="text-sm text-slate-500">Phone</p>
+            <div className="mt-3">
+              <StatusBadge status={buyer.phoneVerified ? "verified" : "not_verified"} />
             </div>
           </Card>
           <Card>

@@ -1,4 +1,4 @@
-import { CalendarClock, DoorOpen, HomeIcon, MapPin, Search, ShieldCheck, Sparkles } from "lucide-react";
+import { CalendarClock, DoorOpen, HomeIcon, Search, ShieldCheck, Sparkles, WalletCards } from "lucide-react";
 import { AppShell, ButtonLink, Section } from "@/components/ui";
 
 const heroImage =
@@ -10,15 +10,15 @@ export default function Home() {
       <section className="relative min-h-[620px] overflow-hidden bg-slate-900">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={heroImage} alt="Modern home interior" className="absolute inset-0 h-full w-full object-cover" />
-        <div className="absolute inset-0 bg-slate-950/55" />
+        <div className="absolute inset-0 bg-slate-950/60" />
         <div className="relative mx-auto flex min-h-[620px] max-w-6xl flex-col justify-center px-4 py-16 text-white">
           <div className="max-w-3xl">
             <p className="text-sm font-semibold uppercase tracking-wide text-teal-200">Showings Made Simple</p>
             <h1 className="mt-4 text-4xl font-semibold tracking-tight sm:text-6xl">
-              See the homes you want, when you want.
+              See the homes you want, without signing a contract.
             </h1>
             <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-100">
-              Showings Made Simple helps serious buyers tour homes without waiting on back-and-forth scheduling. Request a private showing and get connected with a licensed local agent who can open the door.
+              Today&apos;s buyers are being told they must sign agreements and commit to paying thousands in agent fees before they can even step inside a house. Showings Made Simple gives you a no-pressure, $30 flat-fee way to tour homes on your terms.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <ButtonLink href="/signup">Get started as a buyer</ButtonLink>
@@ -28,9 +28,9 @@ export default function Home() {
 
           <div className="mt-12 grid max-w-3xl gap-3 sm:grid-cols-3">
             {[
-              ["On-demand access", "Request a showing when a property catches your eye."],
-              ["Flexible timing", "Choose the time that works for your day."],
-              ["Local agent support", "A licensed agent meets you at the property."],
+              ["No buyer-agent agreement", "Tour homes without signing a contract or agreeing to pay a commission."],
+              ["$30 flat fee", "A simple, transparent fee for access. No surprises. No pressure."],
+              ["On-demand access", "Request a showing the moment a property catches your eye."],
             ].map(([title, body]) => (
               <div key={title} className="rounded-md border border-white/20 bg-white/10 p-4 backdrop-blur">
                 <p className="font-semibold">{title}</p>
@@ -44,10 +44,10 @@ export default function Home() {
       <section className="border-b border-slate-200 bg-white">
         <Section className="grid gap-5 md:grid-cols-4">
           {[
-            [DoorOpen, "Tour more homes", "See properties while they are still fresh on the market."],
-            [CalendarClock, "Move faster", "Cut down the waiting and coordination that slows buyers down."],
-            [MapPin, "Shop your market", "Explore homes near where you live, work, and spend time."],
-            [ShieldCheck, "Feel prepared", "Verified buyers get a safer, more serious showing experience."],
+            [DoorOpen, "On-demand access", "Request a showing the moment a property catches your eye - no contracts, no commitments."],
+            [WalletCards, "$30 flat fee", "Pay a simple flat fee for access. It can be reimbursed if you decide to hire a buyer's agent."],
+            [CalendarClock, "Flexible timing", "Choose the time that works for your schedule, not an agent's."],
+            [ShieldCheck, "Licensed access agents", "A licensed professional meets you at the property to open the door and verify access."],
           ].map(([Icon, title, body]) => (
             <div key={String(title)} className="rounded-lg border border-slate-200 bg-white p-5">
               <Icon className="text-teal-700" size={24} />
@@ -60,12 +60,15 @@ export default function Home() {
 
       <Section className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
         <div>
-          <p className="text-sm font-semibold text-teal-700">Built for serious buyers</p>
+          <p className="text-sm font-semibold text-teal-700">Built for buyers who are not ready to hire an agent</p>
           <h2 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
-            House hunting should not depend on someone else’s calendar.
+            See homes first. Decide on representation later.
           </h2>
           <p className="mt-4 leading-7 text-slate-600">
-            When you find a place worth seeing, you should be able to act quickly. Showings Made Simple gives buyers a direct way to request access, confirm the appointment, and keep moving.
+            Many buyers are not ready to commit to one agent, sign a legal contract, agree to pay thousands in buyer-agent fees, or interview multiple agents before seeing a single home. You should not lose out on a home because you are not ready for all that.
+          </p>
+          <p className="mt-4 leading-7 text-slate-600">
+            Showings Made Simple lets you tour homes first with less friction, then decide what kind of representation makes sense for you.
           </p>
           <div className="mt-6">
             <ButtonLink href="/signup">Start looking</ButtonLink>
@@ -74,10 +77,10 @@ export default function Home() {
 
         <div className="grid gap-4 sm:grid-cols-2">
           {[
-            [Search, "See it sooner", "Request showings before your interest fades or the home gets claimed."],
-            [HomeIcon, "Private tours", "Walk through the property with room to ask questions and look closely."],
-            [Sparkles, "Less friction", "No long email chains just to find out whether a showing is possible."],
-            [ShieldCheck, "Buyer-focused", "Designed for buyers who are ready to tour seriously and safely."],
+            [Search, "Move faster", "Skip the back-and-forth and tour homes while they are still fresh on the market."],
+            [HomeIcon, "Private tours", "Walk through the property with space to look closely and ask questions."],
+            [Sparkles, "No pressure", "You are paying for access, not representation, so there is no sales pitch."],
+            [ShieldCheck, "Safer showing process", "Verified buyers get a smoother, more secure showing experience while staying in control of their search and budget."],
           ].map(([Icon, title, body]) => (
             <div key={String(title)} className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
               <Icon className="text-teal-700" size={22} />
