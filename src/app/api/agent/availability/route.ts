@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { geocodeAddress } from "@/lib/geocoding";
+import { getAuthenticatedProfileId } from "@/lib/server-auth";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
 const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
@@ -17,15 +18,20 @@ export async function POST(request: Request) {
   const payload = schema.parse(Object.fromEntries(form));
   const selectedDays = form.getAll("availableDays").map(String).filter((day) => days.includes(day as typeof days[number]));
   const supabase = getSupabaseAdmin();
+  const authenticatedAgentId = await getAuthenticatedProfileId("agent");
 
-  if (supabase && payload.agentId) {
+  if (!authenticatedAgentId || (payload.agentId && payload.agentId !== authenticatedAgentId)) {
+    return NextResponse.redirect(new URL("/login?error=Agent login required.", request.url), { status: 303 });
+  }
+
+  if (supabase) {
     const geocodedLocation = payload.serviceLocation?.trim()
       ? await geocodeAddress(payload.serviceLocation)
       : null;
     const availabilityRows = selectedDays.map((day) => {
       const dayIndex = days.indexOf(day as typeof days[number]);
       return {
-        agent_id: payload.agentId,
+        agent_id: authenticatedAgentId,
         day_of_week: dayIndex,
         start_time: String(form.get(`startTime_${day}`) || "09:00"),
         end_time: String(form.get(`endTime_${day}`) || "17:00"),
@@ -43,9 +49,9 @@ export async function POST(request: Request) {
       service_radius_miles: payload.serviceRadiusMiles,
       is_available: payload.isAvailable === "true",
       is_active: true,
-    }).eq("id", payload.agentId);
+    }).eq("id", authenticatedAgentId);
 
-    await supabase.from("agent_availability").delete().eq("agent_id", payload.agentId);
+    await supabase.from("agent_availability").delete().eq("agent_id", authenticatedAgentId);
     if (availabilityRows.length > 0) {
       await supabase.from("agent_availability").insert(availabilityRows);
     }

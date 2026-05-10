@@ -1,10 +1,17 @@
 import { NextResponse } from "next/server";
+import { getAuthenticatedProfileId } from "@/lib/server-auth";
 import { acceptShowingRequest } from "@/lib/workflow";
 
 export async function POST(request: Request) {
   const form = await request.formData();
   const showingId = String(form.get("showingId"));
   const agentId = String(form.get("agentId"));
+
+  const authenticatedAgentId = await getAuthenticatedProfileId("agent");
+  if (!authenticatedAgentId || authenticatedAgentId !== agentId) {
+    return NextResponse.redirect(new URL("/login?error=Agent login required.", request.url), { status: 303 });
+  }
+
   const result = await acceptShowingRequest(showingId, agentId);
 
   if (!result.accepted) {

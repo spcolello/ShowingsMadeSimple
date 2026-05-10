@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { z } from "zod";
 import { uploadAgentDocument } from "@/lib/agent-onboarding";
+import { env } from "@/lib/env";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
 const schema = z.object({
@@ -17,6 +18,14 @@ export async function POST(request: Request) {
     return NextResponse.redirect(new URL("/agent/onboarding/license?error=Invalid license information", request.url), { status: 303 });
   }
 
+  const licenseState = payload.data.licenseState.trim().toUpperCase();
+  if (licenseState !== env.launchState.toUpperCase()) {
+    return NextResponse.redirect(
+      new URL(`/agent/onboarding/license?error=${encodeURIComponent(`Launch is currently limited to ${env.launchState} licensed agents.`)}`, request.url),
+      { status: 303 },
+    );
+  }
+
   const supabase = getSupabaseAdmin();
   const userId = (await cookies()).get("sms_user_id")?.value;
   const { data: profile } = supabase && userId
@@ -28,7 +37,7 @@ export async function POST(request: Request) {
   if (supabase && agentId !== "pending-agent") {
     await supabase.from("agent_profiles").update({
       license_number: payload.data.licenseNumber,
-      license_state: payload.data.licenseState,
+      license_state: licenseState,
       license_expiration_date: payload.data.licenseExpirationDate,
       license_file_url: licenseFileUrl,
       license_verification_status: "pending_review",

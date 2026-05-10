@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { AppShell, ButtonLink, Card, Field, Section, StatusBadge } from "@/components/ui";
 import { demoAgents, demoBuyer, demoPayouts, demoShowings, formatMoney, matchingAgentsForZip } from "@/lib/demo-data";
 import { addressShowingStatusText, type AddressShowingStatus } from "@/lib/address-showings";
+import { env } from "@/lib/env";
 import { distanceMiles } from "@/lib/geocoding";
 import { isAgentReady } from "@/lib/mvp-rules";
 import { nextAgentOnboardingPath } from "@/lib/onboarding-routing";
@@ -492,7 +493,7 @@ export default async function AgentDashboardPage() {
   const completed = assigned.filter((showing) => showing.status === "completed");
   const missingSteps = [
     !agent.emailVerified ? "Verify email" : null,
-    !agent.phoneVerified ? "Verify phone" : null,
+    env.requirePhoneVerification && !agent.phoneVerified ? "Verify phone" : null,
     agent.licenseVerificationStatus !== "approved" ? "License approval" : null,
     agent.brokerageVerificationStatus !== "approved" ? "Brokerage approval" : null,
     agent.w9VerificationStatus !== "approved" ? "W-9 approval" : null,
@@ -517,7 +518,7 @@ export default async function AgentDashboardPage() {
 
         <div className="mt-8 grid gap-4 md:grid-cols-6">
           <Card><p className="text-sm text-slate-500">Email</p><div className="mt-3"><StatusBadge status={agent.emailVerified ? "verified" : "not_verified"} /></div></Card>
-          <Card><p className="text-sm text-slate-500">Phone</p><div className="mt-3"><StatusBadge status={agent.phoneVerified ? "verified" : "not_verified"} /></div></Card>
+          <Card><p className="text-sm text-slate-500">Phone</p><div className="mt-3"><StatusBadge status={agent.phoneVerified ? "verified" : env.requirePhoneVerification ? "not_verified" : "saved"} /></div></Card>
           <Card><p className="text-sm text-slate-500">License</p><div className="mt-3"><StatusBadge status={agent.licenseVerificationStatus} /></div></Card>
           <Card><p className="text-sm text-slate-500">Brokerage</p><div className="mt-3"><StatusBadge status={agent.brokerageVerificationStatus} /></div></Card>
           <Card><p className="text-sm text-slate-500">W-9</p><div className="mt-3"><StatusBadge status={agent.w9VerificationStatus} /></div></Card>

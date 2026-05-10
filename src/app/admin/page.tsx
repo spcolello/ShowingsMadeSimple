@@ -357,6 +357,23 @@ export default async function AdminPage() {
           ))}
         </div>
 
+        <Card className="mt-8">
+          <h2 className="text-lg font-semibold">Admin access</h2>
+          <p className="mt-2 text-sm text-slate-600">
+            Create another admin account for someone who should approve buyers, agents, payments, and platform records.
+          </p>
+          <form action="/api/admin/actions" method="post" className="mt-4 grid gap-3 md:grid-cols-[1fr_1fr_1fr_auto] md:items-end">
+            <input type="hidden" name="action" value="create_admin" />
+            <input type="hidden" name="subjectId" value="new" />
+            <AdminInput name="fullName" label="Full name" />
+            <AdminInput name="email" label="Email" type="email" />
+            <AdminInput name="password" label="Temporary password" type="password" />
+            <button className="min-h-10 rounded-md bg-teal-700 px-3 text-sm font-semibold text-white hover:bg-teal-800">
+              Create admin
+            </button>
+          </form>
+        </Card>
+
         <div className="mt-8 grid gap-4 lg:grid-cols-2">
           <Card id="buyers">
             <div className="flex items-center justify-between gap-3">

@@ -24,6 +24,7 @@ type AssignmentRow = {
 type AgentRow = {
   id: string;
   name: string | null;
+  phone: string | null;
 };
 
 function normalizeShowingStatus(status: string) {
@@ -56,6 +57,7 @@ export async function GET() {
         showingFeeCents: showing.showingFeeCents,
         assignedAgentId: showing.assignedAgentId,
         agentName: demoAgents.find((agent) => agent.id === showing.assignedAgentId)?.name ?? null,
+        agentPhone: demoAgents.find((agent) => agent.id === showing.assignedAgentId)?.phone ?? null,
       })),
       updatedAt: new Date().toISOString(),
     });
@@ -100,9 +102,9 @@ export async function GET() {
 
   const agentIds = [...new Set(assignments.map((assignment) => assignment.agent_id))];
   const { data: rawAgents } = agentIds.length
-    ? await supabase.from("agent_profiles").select("id, name").in("id", agentIds).returns<AgentRow[]>()
+    ? await supabase.from("agent_profiles").select("id, name, phone").in("id", agentIds).returns<AgentRow[]>()
     : { data: [] as AgentRow[] };
-  const agentsById = new Map((rawAgents ?? []).map((agent) => [agent.id, agent.name ?? "Assigned agent"]));
+  const agentsById = new Map((rawAgents ?? []).map((agent) => [agent.id, agent]));
 
   return NextResponse.json({
     showings: showings.map((showing) => {
@@ -117,7 +119,8 @@ export async function GET() {
         paymentStatus: showing.payment_status,
         showingFeeCents: showing.showing_fee_cents,
         assignedAgentId: assignment?.agent_id ?? null,
-        agentName: assignment?.agent_id ? agentsById.get(assignment.agent_id) ?? "Assigned agent" : null,
+        agentName: assignment?.agent_id ? agentsById.get(assignment.agent_id)?.name ?? "Assigned agent" : null,
+        agentPhone: assignment?.agent_id ? agentsById.get(assignment.agent_id)?.phone ?? null : null,
       };
     }),
     updatedAt: new Date().toISOString(),

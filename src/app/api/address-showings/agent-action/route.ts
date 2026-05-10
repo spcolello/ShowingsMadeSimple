@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { notifyAddressShowingBuyer, type AddressShowingStatus } from "@/lib/address-showings";
+import { env } from "@/lib/env";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
 const schema = z.object({
@@ -48,7 +49,7 @@ export async function POST(request: Request) {
   if (!agent) {
     return NextResponse.redirect(new URL("/agent/dashboard?addressAction=no_agent", request.url), { status: 303 });
   }
-  if (!agent.phone_verified || agent.approval_status !== "approved") {
+  if ((env.requirePhoneVerification && !agent.phone_verified) || agent.approval_status !== "approved") {
     return NextResponse.redirect(new URL("/agent/dashboard?addressAction=phone_required", request.url), { status: 303 });
   }
 

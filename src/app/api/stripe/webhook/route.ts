@@ -10,6 +10,10 @@ export async function POST(request: Request) {
   const signature = (await headers()).get("stripe-signature");
 
   if (!stripe || !env.stripeWebhookSecret || !signature) {
+    if (!env.enableDemoAccess) {
+      return NextResponse.json({ error: "Stripe webhook is not configured." }, { status: 500 });
+    }
+
     return NextResponse.json({ received: true, mocked: true });
   }
 

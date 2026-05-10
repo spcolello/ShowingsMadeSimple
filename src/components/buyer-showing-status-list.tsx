@@ -15,6 +15,7 @@ export type BuyerShowingStatusItem = {
   showingFeeCents: number;
   assignedAgentId?: string | null;
   agentName?: string | null;
+  agentPhone?: string | null;
 };
 
 function StatusPill({ status }: { status: string }) {
@@ -124,7 +125,15 @@ export function BuyerShowingStatusList({
               </p>
             </div>
             <p className="text-sm text-slate-700">{new Date(showing.preferredTime).toLocaleString()}</p>
-            <p className="text-sm text-slate-700">{showing.agentName ? `Agent: ${showing.agentName}` : "Awaiting agent"}</p>
+            <div className="text-sm text-slate-700">
+              <p>{showing.agentName ? `Agent: ${showing.agentName}` : "Awaiting agent"}</p>
+              {showing.agentPhone && (
+                <p>
+                  <span className="text-slate-500">Phone: </span>
+                  <span className="font-semibold text-teal-700">{showing.agentPhone}</span>
+                </p>
+              )}
+            </div>
             <div className="flex items-center gap-3">
               <StatusPill status={showing.status} />
               <span className="text-sm text-slate-500">

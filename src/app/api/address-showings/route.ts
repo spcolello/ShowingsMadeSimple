@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { findMatchingAddressAgents, notifyAddressShowingAgents } from "@/lib/address-showings";
+import { env } from "@/lib/env";
 import { geocodeAddress } from "@/lib/geocoding";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
@@ -43,7 +44,7 @@ export async function POST(request: Request) {
     .eq("user_id", userId)
     .maybeSingle();
 
-  if (!buyerProfile?.phone_verified || buyerProfile.suspended) {
+  if (buyerProfile?.suspended || (env.requirePhoneVerification && !buyerProfile?.phone_verified)) {
     return NextResponse.redirect(new URL("/buyer/dashboard?tab=address&error=Verify your phone before requesting a showing.", request.url), { status: 303 });
   }
 
@@ -81,8 +82,7 @@ export async function POST(request: Request) {
   const { data: agents } = await supabase
     .from("agent_profiles")
     .select("id, name, phone, phone_verified, service_zips, service_areas, service_radius_miles, home_lat, home_lng, is_active, is_available, users(email)")
-    .eq("approval_status", "approved")
-    .eq("phone_verified", true);
+    .eq("approval_status", "approved");
   const matchedAgents = findMatchingAddressAgents(agents ?? [], geocoded);
 
   if (matchedAgents.length === 0) {

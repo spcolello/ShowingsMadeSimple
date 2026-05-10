@@ -7,6 +7,7 @@ import { BuyerShowingStatusList } from "@/components/buyer-showing-status-list";
 import { AddressShowingRequestPanel, type BuyerAddressShowingRequest } from "@/components/address-showing-request-panel";
 import { AppShell, ButtonLink, Card, Section, StatusBadge } from "@/components/ui";
 import { demoAgents, demoBuyer, demoShowings } from "@/lib/demo-data";
+import { env } from "@/lib/env";
 import { isBuyerReady } from "@/lib/mvp-rules";
 import { nextBuyerOnboardingPath } from "@/lib/onboarding-routing";
 import { getSupabaseAdmin } from "@/lib/supabase";
@@ -342,7 +343,7 @@ export default async function BuyerDashboardPage({
   const buyerReady = isBuyerReady(buyer);
   const missingSteps = [
     !buyer.emailVerified ? "Verify email" : null,
-    !buyer.phoneVerified ? "Verify phone" : null,
+    env.requirePhoneVerification && !buyer.phoneVerified ? "Verify phone" : null,
     buyer.identityVerificationStatus !== "approved" ? "Identity approval" : null,
     buyer.financialVerificationStatus !== "approved" ? "Financial approval" : null,
     !buyer.buyerOnboardingCompleted ? "Complete onboarding" : null,
@@ -383,7 +384,7 @@ export default async function BuyerDashboardPage({
           <Card>
             <p className="text-sm text-slate-500">Phone</p>
             <div className="mt-3">
-              <StatusBadge status={buyer.phoneVerified ? "verified" : "not_verified"} />
+              <StatusBadge status={buyer.phoneVerified ? "verified" : env.requirePhoneVerification ? "not_verified" : "saved"} />
             </div>
           </Card>
           <Card>

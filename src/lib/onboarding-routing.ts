@@ -1,3 +1,5 @@
+import { env } from "./env";
+
 type BuyerOnboardingRow = {
   email_verified?: boolean | null;
   phone_verified?: boolean | null;
@@ -29,7 +31,7 @@ export function nextBuyerOnboardingPath(profile?: BuyerOnboardingRow | null) {
     return "/buyer/onboarding/email";
   }
 
-  if (!profile.phone_verified) {
+  if (env.requirePhoneVerification && !profile.phone_verified) {
     return "/buyer/onboarding/phone";
   }
 
@@ -53,7 +55,7 @@ export function nextAgentOnboardingPath(profile?: AgentOnboardingRow | null) {
     return "/agent/onboarding/email";
   }
 
-  if (!profile.phone_verified) {
+  if (env.requirePhoneVerification && !profile.phone_verified) {
     return "/agent/onboarding/phone";
   }
 

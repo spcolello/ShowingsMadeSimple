@@ -1,6 +1,7 @@
 import { MailCheck } from "lucide-react";
 import { AppShell, Card, Section } from "@/components/ui";
 import { BuyerOnboardingSteps } from "@/components/onboarding";
+import { env } from "@/lib/env";
 
 export default async function BuyerEmailVerificationPage({
   searchParams,
@@ -22,7 +23,9 @@ export default async function BuyerEmailVerificationPage({
           </h1>
           <p className="mt-2 text-sm text-slate-600">
             {verified
-              ? "Your email is verified. Continue to phone verification."
+              ? env.requirePhoneVerification
+                ? "Your email is verified. Continue to phone verification."
+                : "Your email is verified. Continue to identity verification."
               : `We sent a verification link or code to ${email}. Local mock code: 123456.`}
           </p>
 
@@ -63,10 +66,10 @@ export default async function BuyerEmailVerificationPage({
             </div>
           ) : (
             <a
-              href="/buyer/onboarding/phone"
+              href={env.requirePhoneVerification ? "/buyer/onboarding/phone" : "/buyer/onboarding/identity"}
               className="mt-6 inline-flex min-h-11 items-center rounded-md bg-teal-700 px-4 text-sm font-semibold text-white hover:bg-teal-800"
             >
-              Continue to phone verification
+              {env.requirePhoneVerification ? "Continue to phone verification" : "Continue to identity verification"}
             </a>
           )}
         </Card>

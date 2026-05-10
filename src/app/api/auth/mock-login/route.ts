@@ -1,25 +1,22 @@
 import { NextResponse } from "next/server";
+import { setAuthCookies } from "@/lib/auth-cookies";
+import { env } from "@/lib/env";
 
 export async function POST(request: Request) {
   const form = await request.formData();
   const email = String(form.get("email") ?? "");
   const password = String(form.get("password") ?? "");
 
-  if (process.env.NODE_ENV === "production") {
+  if (!env.enableDemoAccess) {
     return NextResponse.redirect(
-      new URL("/login?error=Mock login is disabled in production.", request.url),
+      new URL("/login?error=Mock login is disabled.", request.url),
       { status: 303 },
     );
   }
 
   if (email === "admin@gmail.com" && password === "admin") {
     const response = NextResponse.redirect(new URL("/admin", request.url), { status: 303 });
-    response.cookies.set("sms_demo_role", "admin", {
-      httpOnly: true,
-      sameSite: "lax",
-      path: "/",
-      maxAge: 60 * 60 * 8,
-    });
+    setAuthCookies(response, "admin", "mock-admin");
     return response;
   }
 

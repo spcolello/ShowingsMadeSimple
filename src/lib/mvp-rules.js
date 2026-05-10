@@ -1,7 +1,9 @@
+const requirePhoneVerification = process.env.REQUIRE_PHONE_VERIFICATION === "true";
+
 export function isBuyerReady(buyer) {
   return (
     buyer.emailVerified === true &&
-    buyer.phoneVerified === true &&
+    (!requirePhoneVerification || buyer.phoneVerified === true) &&
     buyer.identityVerificationStatus === "approved" &&
     buyer.financialVerificationStatus === "approved" &&
     buyer.buyerOnboardingCompleted === true &&
@@ -16,7 +18,7 @@ export function canBroadcastShowing(showing) {
 export function isAgentReady(agent) {
   return (
     agent.emailVerified === true &&
-    agent.phoneVerified === true &&
+    (!requirePhoneVerification || agent.phoneVerified === true) &&
     agent.licenseVerificationStatus === "approved" &&
     agent.brokerageVerificationStatus === "approved" &&
     agent.w9VerificationStatus === "approved" &&
@@ -44,8 +46,7 @@ export function findEligibleAgents(agents, showing, now = new Date()) {
         isAgentReady(agent) &&
         agent.isAvailable === true &&
         hasArea &&
-        hasNotice &&
-        agent.phone
+        hasNotice
       );
     })
     .sort((a, b) => {

@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { setAuthCookies } from "@/lib/auth-cookies";
+import { env } from "@/lib/env";
 import { nextAgentOnboardingPath, nextBuyerOnboardingPath } from "@/lib/onboarding-routing";
 import { getSupabaseAdmin, getSupabasePublic } from "@/lib/supabase";
 
@@ -10,18 +12,7 @@ const schema = z.object({
 
 function redirectWithAuthCookies(request: Request, role: string, userId: string, path: string) {
   const response = NextResponse.redirect(new URL(path, request.url), { status: 303 });
-  response.cookies.set("sms_demo_role", role, {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 8,
-  });
-  response.cookies.set("sms_user_id", userId, {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 8,
-  });
+  setAuthCookies(response, role, userId);
   return response;
 }
 
@@ -35,7 +26,7 @@ export async function POST(request: Request) {
     });
   }
 
-  if (payload.data.email.toLowerCase() === "admin@gmail.com" && payload.data.password === "admin") {
+  if (env.enableDemoAccess && payload.data.email.toLowerCase() === "admin@gmail.com" && payload.data.password === "admin") {
     return redirectWithAuthCookies(request, "admin", "mock-admin", "/admin");
   }
 

@@ -1,4 +1,5 @@
 import { distanceMiles, type GeocodedAddress } from "./geocoding";
+import { sendSms } from "./sms";
 import { getSupabaseAdmin } from "./supabase";
 
 export type AddressShowingStatus =
@@ -66,23 +67,31 @@ export async function notifyAddressShowingAgents(requestId: string, address: str
     .select("id, phone, users(email)")
     .in("id", agentIds);
 
-  await supabase.from("address_showing_notifications").insert(
-    ((agents ?? []) as Array<{ id: string; phone?: string | null; users?: { email?: string | null } | { email?: string | null }[] | null }>).map((agent) => ({
+  const notifications = await Promise.all(
+    ((agents ?? []) as Array<{ id: string; phone?: string | null; users?: { email?: string | null } | { email?: string | null }[] | null }>).map(async (agent) => {
+      const message = `New showing request: ${address}. Preferred time: ${new Date(preferredTime).toLocaleString()}. Accept to claim and check MLS availability.`;
+      const smsResult = agent.phone ? await sendSms(agent.phone, message).catch(() => null) : null;
+
+      return {
       request_id: requestId,
       recipient_type: "agent",
       recipient_agent_id: agent.id,
       recipient_email: Array.isArray(agent.users) ? agent.users[0]?.email : agent.users?.email,
       recipient_phone: agent.phone,
-      message: `New showing request: ${address}. Preferred time: ${new Date(preferredTime).toLocaleString()}. Accept to claim and check MLS availability.`,
-      status: "in_app",
-    })),
+        message,
+        status: smsResult ? (smsResult.mocked ? "mocked" : "sent") : "in_app",
+      };
+    }),
   );
-  // TODO: send the same notification through Twilio when production SMS credentials are configured.
+
+  await supabase.from("address_showing_notifications").insert(notifications);
 }
 
 export async function notifyAddressShowingBuyer(requestId: string, email: string, phone: string, message: string) {
   const supabase = getSupabaseAdmin();
   if (!supabase) return;
+
+  const smsResult = phone ? await sendSms(phone, message).catch(() => null) : null;
 
   await supabase.from("address_showing_notifications").insert({
     request_id: requestId,
@@ -90,7 +99,6 @@ export async function notifyAddressShowingBuyer(requestId: string, email: string
     recipient_email: email,
     recipient_phone: phone,
     message,
-    status: "in_app",
+    status: smsResult ? (smsResult.mocked ? "mocked" : "sent") : "in_app",
   });
-  // TODO: send this buyer notification through email/SMS when notification providers are configured.
 }

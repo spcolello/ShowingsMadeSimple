@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { EmailOtpType, User } from "@supabase/supabase-js";
+import { setAuthCookies } from "@/lib/auth-cookies";
 import { getSupabaseAdmin, getSupabasePublic } from "@/lib/supabase";
 
 export async function GET(request: Request) {
@@ -63,18 +64,7 @@ export async function GET(request: Request) {
             ? "/agent/onboarding/license"
             : "/admin";
       const response = NextResponse.redirect(new URL(path, request.url), { status: 303 });
-      response.cookies.set("sms_demo_role", role, {
-        httpOnly: true,
-        sameSite: "lax",
-        path: "/",
-        maxAge: 60 * 60 * 8,
-      });
-      response.cookies.set("sms_user_id", user.id, {
-        httpOnly: true,
-        sameSite: "lax",
-        path: "/",
-        maxAge: 60 * 60 * 8,
-      });
+      setAuthCookies(response, role, user.id);
       return response;
     }
   }

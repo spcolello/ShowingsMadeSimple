@@ -98,6 +98,16 @@ export default async function ShowingDetailPage({
                     <dt className="text-slate-500">Assigned agent</dt>
                     <dd>{assignedAgent?.name ?? "Waiting for first accept"}</dd>
                   </div>
+                  {assignedAgent?.phone && (
+                    <div>
+                      <dt className="text-slate-500">Agent phone</dt>
+                      <dd>
+                        <a className="font-semibold text-teal-700" href={`tel:${assignedAgent.phone}`}>
+                          {assignedAgent.phone}
+                        </a>
+                      </dd>
+                    </div>
+                  )}
                   <div>
                     <dt className="text-slate-500">Next step</dt>
                     <dd>{showing.payment_status === "held" ? "Nearby approved agents can accept this request." : "Complete payment to alert agents."}</dd>

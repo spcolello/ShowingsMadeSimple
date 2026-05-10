@@ -52,7 +52,7 @@ export async function createShowingRequest(input: ShowingInput) {
 
   if (
     !data.email_verified ||
-    !data.phone_verified ||
+    (env.requirePhoneVerification && !data.phone_verified) ||
     data.identity_verification_status !== "approved" ||
     data.financial_verification_status !== "approved" ||
     !data.buyer_onboarding_completed ||
@@ -135,9 +135,7 @@ export async function notifyMatchingAgents(showingId: string) {
     .select("*")
     .eq("approval_status", "approved")
     .eq("is_available", true)
-    .eq("phone_verified", true)
-    .contains("service_areas", [showing.zip_code])
-    .not("phone", "is", null);
+    .contains("service_areas", [showing.zip_code]);
 
   if (error) {
     throw error;
@@ -146,18 +144,22 @@ export async function notifyMatchingAgents(showingId: string) {
   const notifications = await Promise.all(
     (agents ?? []).map(async (agent) => {
       const acceptUrl = `${env.appUrl}/agent/accept/${showingId}?agent=${agent.id}`;
-      const result = await sendSms(
-        agent.phone,
-        `New showing request at ${showing.property_address}. Accept: ${acceptUrl}`,
-      );
+      const body = `New showing request at ${showing.property_address}. Accept: ${acceptUrl}`;
+      const result = agent.phone
+        ? await sendSms(agent.phone, body).catch((error) => ({
+            mocked: false,
+            sid: null,
+            error: error instanceof Error ? error.message : "SMS failed.",
+          }))
+        : { mocked: false, sid: null, error: "Agent phone is missing." };
 
       await supabase.from("sms_notifications").insert({
         showing_request_id: showingId,
         agent_id: agent.id,
         phone: agent.phone,
-        body: `New showing request at ${showing.property_address}. Accept: ${acceptUrl}`,
+        body,
         provider_sid: result.sid,
-        status: result.mocked ? "mocked" : "sent",
+        status: "error" in result ? "failed" : result.mocked ? "mocked" : "sent",
       });
 
       return result;
@@ -194,8 +196,13 @@ export async function acceptShowingRequest(showingId: string, agentId: string) {
     throw agentError;
   }
 
-  if (!agent?.phone_verified || agent.approval_status !== "approved") {
-    return { accepted: false, message: "Agent approval and phone verification are required before accepting showings." };
+  if (!agent || agent.approval_status !== "approved" || (env.requirePhoneVerification && !agent.phone_verified)) {
+    return {
+      accepted: false,
+      message: env.requirePhoneVerification
+        ? "Agent approval and phone verification are required before accepting showings."
+        : "Agent approval is required before accepting showings.",
+    };
   }
 
   const { data, error } = await supabase.rpc("accept_showing_request", {

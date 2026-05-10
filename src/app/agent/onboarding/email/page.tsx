@@ -1,6 +1,7 @@
 import { MailCheck } from "lucide-react";
 import { AgentOnboardingSteps } from "@/components/onboarding";
 import { AppShell, Card, Section } from "@/components/ui";
+import { env } from "@/lib/env";
 
 export default async function AgentEmailVerificationPage({
   searchParams,
@@ -22,7 +23,9 @@ export default async function AgentEmailVerificationPage({
           </h1>
           <p className="mt-2 text-sm text-slate-600">
             {verified
-              ? "Your email is verified. Continue to phone verification."
+              ? env.requirePhoneVerification
+                ? "Your email is verified. Continue to phone verification."
+                : "Your email is verified. Continue to license verification."
               : `We sent a verification link or code to ${email}. Local mock code: 123456.`}
           </p>
           {params.error && (
@@ -56,8 +59,8 @@ export default async function AgentEmailVerificationPage({
               </form>
             </div>
           ) : (
-            <a href="/agent/onboarding/phone" className="mt-6 inline-flex min-h-11 items-center rounded-md bg-teal-700 px-4 text-sm font-semibold text-white hover:bg-teal-800">
-              Continue to phone verification
+            <a href={env.requirePhoneVerification ? "/agent/onboarding/phone" : "/agent/onboarding/license"} className="mt-6 inline-flex min-h-11 items-center rounded-md bg-teal-700 px-4 text-sm font-semibold text-white hover:bg-teal-800">
+              {env.requirePhoneVerification ? "Continue to phone verification" : "Continue to license verification"}
             </a>
           )}
         </Card>

@@ -20,6 +20,13 @@ export async function GET(request: Request) {
     : { data: null };
 
   if (!stripe) {
+    if (!env.enableDemoAccess) {
+      return NextResponse.redirect(
+        `${origin}/buyer/dashboard?tab=request&error=${encodeURIComponent("Stripe is not configured.")}`,
+        { status: 303 },
+      );
+    }
+
     if (showing) {
       await holdShowingPayment({
         showingId: showing.id,

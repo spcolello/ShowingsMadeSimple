@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { requireAppRole } from "@/lib/server-auth";
 import { getStripe } from "@/lib/stripe";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
@@ -32,6 +33,7 @@ const schema = z.object({
     "toggle_lender_active",
     "toggle_lender_featured",
     "update_preapproval_status",
+    "create_admin",
   ]),
   subjectId: z.string().min(1),
   agentId: z.string().optional(),
@@ -49,6 +51,8 @@ const schema = z.object({
   isActive: z.boolean().optional(),
   isFeatured: z.boolean().optional(),
   preapprovalStatus: z.enum(["new", "contacted", "preapproved", "denied", "closed"]).optional(),
+  fullName: z.string().optional(),
+  password: z.string().optional(),
   isAvailable: z.boolean().optional(),
   serviceRadiusMiles: z.number().optional(),
   availableHours: z.string().optional(),
@@ -57,6 +61,11 @@ const schema = z.object({
 });
 
 export async function POST(request: Request) {
+  const admin = await requireAppRole("admin");
+  if (!admin) {
+    return NextResponse.json({ error: "Admin access required." }, { status: 403 });
+  }
+
   const contentType = request.headers.get("content-type") ?? "";
   const rawPayload = contentType.includes("application/json")
     ? await request.json()
@@ -336,6 +345,53 @@ export async function POST(request: Request) {
       .eq("id", payload.subjectId);
   }
 
+  if (payload.action === "create_admin") {
+    if (!payload.email || !payload.password || payload.password.length < 8) {
+      throw new Error("Admin email and a password of at least 8 characters are required.");
+    }
+
+    const { data: createdUser, error: createUserError } = await supabase.auth.admin.createUser({
+      email: payload.email,
+      password: payload.password,
+      email_confirm: true,
+      user_metadata: {
+        full_name: payload.fullName ?? "Admin",
+        role: "admin",
+      },
+    });
+
+    const existingUser = createUserError ? await findAuthUserByEmail(supabase, payload.email) : null;
+    const adminUser = createdUser.user ?? existingUser;
+
+    if (!adminUser) {
+      throw createUserError ?? new Error("Admin account could not be created.");
+    }
+
+    if (existingUser) {
+      const { error: updateUserError } = await supabase.auth.admin.updateUserById(existingUser.id, {
+        password: payload.password,
+        email_confirm: true,
+        user_metadata: {
+          ...existingUser.user_metadata,
+          full_name: payload.fullName ?? existingUser.user_metadata?.full_name ?? "Admin",
+          role: "admin",
+        },
+      });
+
+      if (updateUserError) {
+        throw updateUserError;
+      }
+    }
+
+    await supabase.from("users").upsert({
+      id: adminUser.id,
+      role: "admin",
+      email: payload.email,
+      full_name: payload.fullName ?? adminUser.user_metadata?.full_name ?? "Admin",
+      email_verified: true,
+    });
+  }
+
   await supabase.from("audit_logs").insert({
     action: payload.action,
     subject_id: payload.subjectId,
@@ -362,4 +418,26 @@ function csvToArray(value?: string) {
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+async function findAuthUserByEmail(supabase: NonNullable<ReturnType<typeof getSupabaseAdmin>>, email: string) {
+  const normalizedEmail = email.toLowerCase();
+
+  for (let page = 1; page <= 20; page += 1) {
+    const { data, error } = await supabase.auth.admin.listUsers({ page, perPage: 100 });
+    if (error) {
+      throw error;
+    }
+
+    const user = data.users.find((item) => item.email?.toLowerCase() === normalizedEmail);
+    if (user) {
+      return user;
+    }
+
+    if (data.users.length < 100) {
+      return null;
+    }
+  }
+
+  return null;
 }
