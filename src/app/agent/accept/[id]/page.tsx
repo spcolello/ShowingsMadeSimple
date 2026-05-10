@@ -108,7 +108,7 @@ export default async function AcceptShowingPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ claimed?: string; declined?: string }>;
+  searchParams: Promise<{ claimed?: string; declined?: string; error?: string }>;
 }) {
   const [{ id }, query] = await Promise.all([params, searchParams]);
   const { showing, agentId } = await loadShowing(id);
@@ -123,6 +123,11 @@ export default async function AcceptShowingPage({
           <h1 className="mt-4 text-2xl font-semibold">
             {alreadyClaimed ? "This showing has already been claimed." : "Review showing request"}
           </h1>
+          {query.error && (
+            <p className="mt-4 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+              {query.error}
+            </p>
+          )}
           <div className="mt-4 grid gap-3 text-sm text-slate-700">
             <p><span className="font-semibold">Property:</span> {showing.propertyAddress}</p>
             <p><span className="font-semibold">Details:</span> {showing.propertyDetails}</p>

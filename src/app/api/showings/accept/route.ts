@@ -15,8 +15,9 @@ export async function POST(request: Request) {
   const result = await acceptShowingRequest(showingId, agentId);
 
   if (!result.accepted) {
+    const message = "message" in result ? String(result.message) : "This showing could not be accepted.";
     return NextResponse.redirect(
-      new URL(`/agent/accept/${showingId}?agent=${agentId}&claimed=true`, request.url),
+      new URL(`/agent/accept/${showingId}?agent=${agentId}&error=${encodeURIComponent(message)}`, request.url),
       { status: 303 },
     );
   }
